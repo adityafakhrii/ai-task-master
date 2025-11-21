@@ -37,13 +37,13 @@ export default function Profile() {
             if (error) throw error;
 
             toast({
-                title: "Profile updated",
-                description: "Your profile information has been updated successfully."
+                title: "Profil Udah Keupdate",
+                description: "Data diri lo udah aman tersimpan."
             });
         } catch (error: any) {
             toast({
                 variant: "destructive",
-                title: "Error",
+                title: "Waduh Error",
                 description: error.message
             });
         } finally {
@@ -56,8 +56,8 @@ export default function Profile() {
         if (password !== confirmPassword) {
             toast({
                 variant: "destructive",
-                title: "Error",
-                description: "Passwords do not match"
+                title: "Waduh Error",
+                description: "Password gak sama, coba fokus dikit."
             });
             return;
         }
@@ -71,15 +71,15 @@ export default function Profile() {
             if (error) throw error;
 
             toast({
-                title: "Password updated",
-                description: "Your password has been updated successfully."
+                title: "Password Udah Ganti",
+                description: "Password baru lo udah aktif."
             });
             setPassword('');
             setConfirmPassword('');
         } catch (error: any) {
             toast({
                 variant: "destructive",
-                title: "Error",
+                title: "Waduh Error",
                 description: error.message
             });
         } finally {
@@ -96,19 +96,19 @@ export default function Profile() {
                     className="mb-6"
                 >
                     <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to Todos
+                    Balik ke List Tugas
                 </Button>
 
-                <h1 className="text-3xl font-bold mb-8">Account Settings</h1>
+                <h1 className="text-3xl font-bold mb-8">Pengaturan Akun</h1>
 
                 <div className="space-y-6">
                     <Card>
                         <CardHeader>
                             <div className="flex items-center gap-2">
                                 <User className="h-5 w-5 text-primary" />
-                                <CardTitle>Profile Information</CardTitle>
+                                <CardTitle>Info Profil Lo</CardTitle>
                             </div>
-                            <CardDescription>Update your personal information</CardDescription>
+                            <CardDescription>Update data diri lo di sini.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={handleUpdateProfile} className="space-y-4">
@@ -122,11 +122,11 @@ export default function Profile() {
                                         id="fullName"
                                         value={fullName}
                                         onChange={(e) => setFullName(e.target.value)}
-                                        placeholder="Enter your full name"
+                                        placeholder="Isi nama lengkap lo"
                                     />
                                 </div>
                                 <Button type="submit" disabled={loading}>
-                                    {loading ? 'Updating...' : 'Update Profile'}
+                                    {loading ? 'Updating...' : 'Update Profil'}
                                 </Button>
                             </form>
                         </CardContent>
@@ -136,34 +136,34 @@ export default function Profile() {
                         <CardHeader>
                             <div className="flex items-center gap-2">
                                 <Lock className="h-5 w-5 text-primary" />
-                                <CardTitle>Change Password</CardTitle>
+                                <CardTitle>Ganti Password</CardTitle>
                             </div>
-                            <CardDescription>Ensure your account is using a long, random password to stay secure.</CardDescription>
+                            <CardDescription>Pake password yang susah ditebak biar aman sentosa.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={handleUpdatePassword} className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="password">New Password</Label>
+                                    <Label htmlFor="password">Password Baru</Label>
                                     <Input
                                         id="password"
                                         type="password"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="Enter new password"
+                                        placeholder="Isi password baru"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                                    <Label htmlFor="confirmPassword">Konfirmasi Password Baru</Label>
                                     <Input
                                         id="confirmPassword"
                                         type="password"
                                         value={confirmPassword}
                                         onChange={(e) => setConfirmPassword(e.target.value)}
-                                        placeholder="Confirm new password"
+                                        placeholder="Ulangi password baru"
                                     />
                                 </div>
                                 <Button type="submit" disabled={loading || !password}>
-                                    {loading ? 'Updating...' : 'Update Password'}
+                                    {loading ? 'Updating...' : 'Ganti Password Sekarang'}
                                 </Button>
                             </form>
                         </CardContent>

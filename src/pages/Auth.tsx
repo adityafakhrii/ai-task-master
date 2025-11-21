@@ -10,12 +10,12 @@ import { z } from 'zod';
 import { CheckCircle2 } from 'lucide-react';
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters')
+  email: z.string().email('Email gak valid nih, coba cek lagi.'),
+  password: z.string().min(6, 'Password minimal 6 karakter dong.')
 });
 
 const signupSchema = loginSchema.extend({
-  fullName: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name too long')
+  fullName: z.string().min(2, 'Nama kependekan, minimal 2 huruf lah.').max(100, 'Nama kepanjangan, singkat dikit napa.')
 });
 
 export default function Auth() {
@@ -77,8 +77,8 @@ export default function Auth() {
           <div className="flex justify-center mb-2">
             <CheckCircle2 className="h-12 w-12 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">Todo App</CardTitle>
-          <CardDescription>Manage your tasks efficiently with AI assistance</CardDescription>
+          <CardTitle className="text-2xl font-bold">Todo App Era</CardTitle>
+          <CardDescription>Atur tugas lo dibantu AI, biar makin produktif ngab.</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={isLogin ? 'login' : 'signup'} onValueChange={(v) => {
@@ -86,18 +86,18 @@ export default function Auth() {
             setErrors({});
           }}>
             <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsTrigger value="login">Masuk Sini</TabsTrigger>
+              <TabsTrigger value="signup">Join Skuy</TabsTrigger>
             </TabsList>
-            
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <TabsContent value="login" className="space-y-4 mt-0">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">Email Lo</Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="you@example.com"
+                    placeholder="email.lo@contoh.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -105,7 +105,7 @@ export default function Auth() {
                   {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">Kata Sandi Rahasia</Label>
                   <Input
                     id="password"
                     type="password"
@@ -120,11 +120,11 @@ export default function Auth() {
 
               <TabsContent value="signup" className="space-y-4 mt-0">
                 <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
+                  <Label htmlFor="fullName">Nama Lengkap Lo</Label>
                   <Input
                     id="fullName"
                     type="text"
-                    placeholder="John Doe"
+                    placeholder="Si Paling Oke"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     required
@@ -132,11 +132,11 @@ export default function Auth() {
                   {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
+                  <Label htmlFor="signup-email">Email Lo</Label>
                   <Input
                     id="signup-email"
                     type="email"
-                    placeholder="you@example.com"
+                    placeholder="email.lo@contoh.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -144,7 +144,7 @@ export default function Auth() {
                   {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
+                  <Label htmlFor="signup-password">Kata Sandi Rahasia</Label>
                   <Input
                     id="signup-password"
                     type="password"
@@ -158,7 +158,7 @@ export default function Auth() {
               </TabsContent>
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Create Account'}
+                {loading ? 'Sabar ya bestie...' : isLogin ? 'Login Gas' : 'Bikin Akun Baru'}
               </Button>
             </form>
           </Tabs>

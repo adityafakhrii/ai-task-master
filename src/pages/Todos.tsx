@@ -68,7 +68,7 @@ export default function Todos() {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Error",
+        title: "Waduh Error",
         description: error.message
       });
     } finally {
@@ -93,7 +93,7 @@ export default function Todos() {
           .eq('id', editingTodo.id);
 
         if (error) throw error;
-        toast({ title: "Todo updated successfully" });
+        toast({ title: "Tugas berhasil diupdate, mantap!" });
       } else {
         const { error } = await supabase
           .from('todos')
@@ -106,7 +106,7 @@ export default function Todos() {
           });
 
         if (error) throw error;
-        toast({ title: "Todo created successfully" });
+        toast({ title: "Tugas baru berhasil dibuat!" });
       }
 
       setFormData({ title: '', description: '', priority: 'medium', category: '' });
@@ -116,7 +116,7 @@ export default function Todos() {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Error",
+        title: "Waduh Error",
         description: error.message
       });
     }
@@ -134,7 +134,7 @@ export default function Todos() {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Error",
+        title: "Waduh Error",
         description: error.message
       });
     }
@@ -148,12 +148,12 @@ export default function Todos() {
         .eq('id', id);
 
       if (error) throw error;
-      toast({ title: "Todo deleted successfully" });
+      toast({ title: "Tugas berhasil dihapus, bye-bye!" });
       fetchTodos();
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Error",
+        title: "Waduh Error",
         description: error.message
       });
     }
@@ -190,7 +190,7 @@ export default function Todos() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Loading...</p>
+        <p className="text-muted-foreground">Sabar ya bestie...</p>
       </div>
     );
   }
@@ -201,7 +201,7 @@ export default function Todos() {
         <div className="flex justify-between items-center mb-8 pt-8">
           <div className="flex items-center gap-3">
             <CheckCircle2 className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">My Todos</h1>
+            <h1 className="text-3xl font-bold">To-Do List Gue</h1>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -209,11 +209,11 @@ export default function Todos() {
               <span>{user?.user_metadata.full_name || user?.email}</span>
             </div>
             <Button onClick={() => navigate('/profile')} variant="outline" size="sm">
-              Profile
+              Profil
             </Button>
             <Button onClick={handleSignOut} variant="outline" size="sm">
               <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
+              Cabut Dulu
             </Button>
           </div>
         </div>
@@ -222,32 +222,32 @@ export default function Todos() {
           <DialogTrigger asChild>
             <Button onClick={openNewDialog} className="w-full mb-6" size="lg">
               <Plus className="h-4 w-4 mr-2" />
-              Add New Todo
+              Tambah Tugas Baru
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editingTodo ? 'Edit Todo' : 'Create New Todo'}</DialogTitle>
+              <DialogTitle>{editingTodo ? 'Edit Tugas' : 'Bikin Tugas Baru'}</DialogTitle>
               <DialogDescription>
-                {editingTodo ? 'Update your todo details below' : 'Add a new task to your list'}
+                {editingTodo ? 'Update detail tugas lo di bawah ini.' : 'Tambahin tugas baru ke list lo.'}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title">Title</Label>
+                <Label htmlFor="title">Judul Tugas</Label>
                 <Input
                   id="title"
-                  placeholder="What needs to be done?"
+                  placeholder="Mau ngapain hari ini?"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">Deskripsi</Label>
                 <Textarea
                   id="description"
-                  placeholder="Add more details..."
+                  placeholder="Kasih detail dikit..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
@@ -255,7 +255,7 @@ export default function Todos() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="priority">Priority</Label>
+                  <Label htmlFor="priority">Seberapa Penting?</Label>
                   <Select
                     value={formData.priority}
                     onValueChange={(value: 'low' | 'medium' | 'high') =>
@@ -266,24 +266,24 @@ export default function Todos() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="low">Santai</SelectItem>
+                      <SelectItem value="medium">Biasa Aja</SelectItem>
+                      <SelectItem value="high">Penting Banget</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
+                  <Label htmlFor="category">Kategori</Label>
                   <Input
                     id="category"
-                    placeholder="e.g., Work, Personal"
+                    placeholder="misal: Kerjaan, Pribadi"
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   />
                 </div>
               </div>
               <Button type="submit" className="w-full">
-                {editingTodo ? 'Update Todo' : 'Create Todo'}
+                {editingTodo ? 'Update Tugas' : 'Simpan Tugas'}
               </Button>
             </form>
           </DialogContent>
@@ -294,7 +294,7 @@ export default function Todos() {
             <Card>
               <CardContent className="py-12 text-center">
                 <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No todos yet. Create your first one!</p>
+                <p className="text-muted-foreground">Belum ada tugas nih. Yuk bikin satu, jangan mager!</p>
               </CardContent>
             </Card>
           ) : (
