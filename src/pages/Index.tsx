@@ -28,9 +28,9 @@ const Index = () => {
         <div className="flex justify-center mb-6">
           <CheckCircle2 className="h-20 w-20 text-primary" />
         </div>
-        <h1 className="text-5xl font-bold tracking-tight">Welcome to Todo App, Bestie!</h1>
+        <h1 className="text-5xl font-bold tracking-tight">CatetYuk</h1>
         <p className="text-xl text-muted-foreground max-w-lg mx-auto">
-          Atur hidup lo biar gak chaos, pake fitur kece kita.
+          simplify your task.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
