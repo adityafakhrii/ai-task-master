@@ -1,1 +1,4 @@
 project_id = "glpseweqnsdnocklxqng"
+
+[functions.ai-parse-task]
+verify_jwt = false
