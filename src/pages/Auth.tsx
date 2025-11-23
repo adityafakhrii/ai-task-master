@@ -189,8 +189,8 @@ export default function Auth() {
                 </div>
               </TabsContent>
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Sabar ya bestie...' : isLogin ? 'Login Gas' : 'Bikin Akun Baru'}
+              <Button type="submit" className="w-full" loading={loading}>
+                {loading ? 'Tunggu bentar yak...' : isLogin ? 'Login Gas' : 'Bikin Akun Baru'}
               </Button>
             </form>
           </Tabs>

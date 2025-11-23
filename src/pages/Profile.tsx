@@ -126,8 +126,8 @@ export default function Profile() {
                                         placeholder="Isi nama lengkap lo"
                                     />
                                 </div>
-                                <Button type="submit" disabled={loading}>
-                                    {loading ? 'Updating...' : 'Update Profil'}
+                                <Button type="submit" loading={loading}>
+                                    {loading ? 'Lagi diupdate...' : 'Update Profil'}
                                 </Button>
                             </form>
                         </CardContent>
@@ -163,8 +163,8 @@ export default function Profile() {
                                         placeholder="Ulangi password baru"
                                     />
                                 </div>
-                                <Button type="submit" disabled={loading || !password}>
-                                    {loading ? 'Updating...' : 'Ganti Password Sekarang'}
+                                <Button type="submit" loading={loading} disabled={!password}>
+                                    {loading ? 'Lagi diganti...' : 'Ganti Password Sekarang'}
                                 </Button>
                             </form>
                         </CardContent>
