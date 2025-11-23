@@ -9,7 +9,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, LogOut, Trash2, Edit, CheckCircle2, User, Loader2 } from 'lucide-react';
+import { Plus, LogOut, Trash2, Edit, CheckCircle2, User, Loader2, Calendar, Clock } from 'lucide-react';
+import { format } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import Footer from '@/components/Footer';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -35,6 +42,9 @@ interface Todo {
   category: string | null;
   created_at: string;
   updated_at: string;
+  due_date: string | null;
+  estimated_duration_minutes: number | null;
+  tags: string[] | null;
 }
 
 export default function Todos() {
@@ -49,7 +59,8 @@ export default function Todos() {
     title: '',
     description: '',
     priority: 'medium' as 'low' | 'medium' | 'high',
-    category: ''
+    category: '',
+    due_date: null as Date | null
   });
   const [nlInput, setNlInput] = useState('');
   const [aiHints, setAiHints] = useState<{ recommendedPriority?: 'low' | 'medium' | 'high'; estimatedMinutes?: number | null; suggestions?: { subtasks?: string[]; checklist?: string[]; templates?: string[] } } | null>(null);
@@ -106,11 +117,29 @@ export default function Todos() {
     try {
       setAiLoading(true);
       const result = await parseTask(nlInput.trim());
+      
+      // Parse due_date if available
+      let parsedDueDate: Date | null = null;
+      if (result.due_date && typeof result.due_date === 'string') {
+        try {
+          parsedDueDate = new Date(result.due_date);
+          if (isNaN(parsedDueDate.getTime())) {
+            parsedDueDate = null;
+          }
+        } catch {
+          parsedDueDate = null;
+        }
+      }
+
+      // Auto-populate description with AI summary
+      const aiGeneratedDescription = result.summary || formData.description;
+      
       setFormData({
         title: result.title || formData.title,
-        description: formData.description,
+        description: aiGeneratedDescription,
         priority: (result.priority === 'low' || result.priority === 'medium' || result.priority === 'high') ? result.priority : formData.priority,
-        category: result.category || formData.category
+        category: result.category || formData.category,
+        due_date: parsedDueDate
       });
       setAiHints({
         recommendedPriority: (result.priority === 'low' || result.priority === 'medium' || result.priority === 'high') ? result.priority : undefined,
@@ -143,7 +172,10 @@ export default function Todos() {
             title: formData.title,
             description: formData.description || null,
             priority: formData.priority,
-            category: formData.category || null
+            category: formData.category || null,
+            due_date: formData.due_date ? formData.due_date.toISOString() : null,
+            estimated_duration_minutes: aiHints?.estimatedMinutes || null,
+            tags: aiHints?.suggestions?.subtasks || null
           })
           .eq('id', editingTodo.id);
 
@@ -159,16 +191,21 @@ export default function Todos() {
             description: formData.description || null,
             priority: formData.priority,
             category: formData.category || null,
-            user_id: user!.id
+            user_id: user!.id,
+            due_date: formData.due_date ? formData.due_date.toISOString() : null,
+            estimated_duration_minutes: aiHints?.estimatedMinutes || null,
+            tags: aiHints?.suggestions?.subtasks || null
           });
 
         if (error) throw error;
         toast({ title: "Tugas baru berhasil dibuat!" });
       }
 
-      setFormData({ title: '', description: '', priority: 'medium', category: '' });
+      setFormData({ title: '', description: '', priority: 'medium', category: '', due_date: null });
       setEditingTodo(null);
       setDialogOpen(false);
+      setAiHints(null);
+      setNlInput('');
       fetchTodos();
     } catch (error: any) {
       toast({
@@ -310,14 +347,17 @@ export default function Todos() {
       title: todo.title,
       description: todo.description || '',
       priority: todo.priority,
-      category: todo.category || ''
+      category: todo.category || '',
+      due_date: todo.due_date ? new Date(todo.due_date) : null
     });
     setDialogOpen(true);
   };
 
   const openNewDialog = () => {
     setEditingTodo(null);
-    setFormData({ title: '', description: '', priority: 'medium', category: '' });
+    setFormData({ title: '', description: '', priority: 'medium', category: '', due_date: null });
+    setAiHints(null);
+    setNlInput('');
     setDialogOpen(true);
   };
 
@@ -447,14 +487,15 @@ export default function Todos() {
               Tambah Tugas Baru
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>{editingTodo ? 'Edit Tugas' : 'Bikin Tugas Baru'}</DialogTitle>
               <DialogDescription>
                 {editingTodo ? 'Update detail tugas lo di bawah ini.' : 'Tambahin tugas baru ke list lo.'}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-3">
+            <ScrollArea className="flex-1 pr-4">
+              <div className="space-y-3 pb-4">
               <Label>Deskripsi Bahasa Alami</Label>
               <Textarea placeholder="contoh: besok pagi kirim laporan ke klien" value={nlInput} onChange={(e) => setNlInput(e.target.value)} rows={2} />
               <div className="flex gap-2">
@@ -484,8 +525,9 @@ export default function Todos() {
                   </div>
                 </div>
               )}
-            </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+              </div>
+            </ScrollArea>
+            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Judul Tugas</Label>
                 <Input
@@ -535,6 +577,31 @@ export default function Todos() {
                   />
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label>Tenggat Waktu (Opsional)</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.due_date && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {formData.due_date ? format(formData.due_date, "PPP", { locale: idLocale }) : "Pilih tanggal"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={formData.due_date || undefined}
+                      onSelect={(date) => setFormData({ ...formData, due_date: date || null })}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
               <Button type="submit" className="w-full" loading={submitLoading}>
                 {submitLoading ? 'Tunggu bentar yak...' : editingTodo ? 'Update Tugas' : 'Simpan Tugas'}
               </Button>
@@ -579,23 +646,42 @@ export default function Todos() {
                             className="mt-1"
                             aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
                           />
-                        )}
-                        <div className="flex-1">
-                          <CardTitle className="text-lg">
-                            {todo.title}
-                          </CardTitle>
-                          {todo.description && (
-                            <CardDescription className="mt-1">{todo.description}</CardDescription>
                           )}
-                          <div className="flex gap-2 mt-2">
-                            <Badge variant="outline" className={priorityColors[todo.priority]}>
-                              {todo.priority}
-                            </Badge>
-                            {todo.category && (
-                              <Badge variant="outline">{todo.category}</Badge>
+                          <div className="flex-1">
+                            <CardTitle className="text-lg">
+                              {todo.title}
+                            </CardTitle>
+                            {todo.description && (
+                              <CardDescription className="mt-1">{todo.description}</CardDescription>
+                            )}
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <Badge variant="outline" className={priorityColors[todo.priority]}>
+                                {todo.priority}
+                              </Badge>
+                              {todo.category && (
+                                <Badge variant="outline">{todo.category}</Badge>
+                              )}
+                              {todo.due_date && (
+                                <Badge variant="outline" className="gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
+                                </Badge>
+                              )}
+                              {todo.estimated_duration_minutes && (
+                                <Badge variant="outline" className="gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {todo.estimated_duration_minutes}m
+                                </Badge>
+                              )}
+                            </div>
+                            {todo.tags && todo.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {todo.tags.slice(0, 3).map((tag, idx) => (
+                                  <span key={idx} className="text-xs text-muted-foreground">#{tag}</span>
+                                ))}
+                              </div>
                             )}
                           </div>
-                        </div>
                       </div>
                       <div className="flex gap-2">
                         <Button
@@ -659,23 +745,42 @@ export default function Todos() {
                             className="mt-1"
                             aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
                           />
-                        )}
-                        <div className="flex-1">
-                          <CardTitle className="text-lg line-through text-muted-foreground">
-                            {todo.title}
-                          </CardTitle>
-                          {todo.description && (
-                            <CardDescription className="mt-1">{todo.description}</CardDescription>
                           )}
-                          <div className="flex gap-2 mt-2">
-                            <Badge variant="outline" className={priorityColors[todo.priority]}>
-                              {todo.priority}
-                            </Badge>
-                            {todo.category && (
-                              <Badge variant="outline">{todo.category}</Badge>
+                          <div className="flex-1">
+                            <CardTitle className="text-lg line-through text-muted-foreground">
+                              {todo.title}
+                            </CardTitle>
+                            {todo.description && (
+                              <CardDescription className="mt-1">{todo.description}</CardDescription>
+                            )}
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <Badge variant="outline" className={priorityColors[todo.priority]}>
+                                {todo.priority}
+                              </Badge>
+                              {todo.category && (
+                                <Badge variant="outline">{todo.category}</Badge>
+                              )}
+                              {todo.due_date && (
+                                <Badge variant="outline" className="gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
+                                </Badge>
+                              )}
+                              {todo.estimated_duration_minutes && (
+                                <Badge variant="outline" className="gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {todo.estimated_duration_minutes}m
+                                </Badge>
+                              )}
+                            </div>
+                            {todo.tags && todo.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {todo.tags.slice(0, 3).map((tag, idx) => (
+                                  <span key={idx} className="text-xs text-muted-foreground">#{tag}</span>
+                                ))}
+                              </div>
                             )}
                           </div>
-                        </div>
                       </div>
                       <div className="flex gap-2">
                         <Button
@@ -755,6 +860,7 @@ export default function Todos() {
           </DialogContent>
         </Dialog>
       )}
+      <Footer />
     </div>
   );
 }

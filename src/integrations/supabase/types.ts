@@ -44,8 +44,11 @@ export type Database = {
           completed: boolean
           created_at: string
           description: string | null
+          due_date: string | null
+          estimated_duration_minutes: number | null
           id: string
           priority: string
+          tags: string[] | null
           title: string
           updated_at: string
           user_id: string
@@ -55,8 +58,11 @@ export type Database = {
           completed?: boolean
           created_at?: string
           description?: string | null
+          due_date?: string | null
+          estimated_duration_minutes?: number | null
           id?: string
           priority?: string
+          tags?: string[] | null
           title: string
           updated_at?: string
           user_id: string
@@ -66,8 +72,11 @@ export type Database = {
           completed?: boolean
           created_at?: string
           description?: string | null
+          due_date?: string | null
+          estimated_duration_minutes?: number | null
           id?: string
           priority?: string
+          tags?: string[] | null
           title?: string
           updated_at?: string
           user_id?: string

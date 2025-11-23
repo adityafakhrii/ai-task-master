@@ -51,10 +51,13 @@ app.post('/api/ai/parse-task', async (req, res) => {
     const { text } = req.body || {};
     if (!text || typeof text !== 'string') return res.status(400).json({ error: 'text is required' });
 
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
     const prompt = `Anda adalah asisten manajemen tugas. Ubah deskripsi menjadi JSON terstruktur dengan schema:
 {
   "title": string,
-  "due_date": string | null, // ISO 8601 (YYYY-MM-DD) jika ada
+  "due_date": string | null, // ISO 8601 (YYYY-MM-DDTHH:mm:ss.sssZ) jika ada tanggal/waktu, gunakan zona waktu WIB (UTC+7)
   "priority": "low" | "medium" | "high",
   "estimated_duration_minutes": number | null,
   "category": string | null,
@@ -63,9 +66,24 @@ app.post('/api/ai/parse-task', async (req, res) => {
     "subtasks": string[],
     "checklist": string[],
     "templates": string[]
-  }
+  },
+  "summary": string // Ringkasan singkat 1-2 kalimat yang menggabungkan informasi dari subtasks, checklist, dan templates
 }
-Pertimbangkan bahasa Indonesia (contoh: "besok pagi", "minggu depan"). Balas hanya JSON tanpa code fence atau penjelasan tambahan. Input: "${text}"`;
+
+Tanggal hari ini adalah: ${todayStr}
+Pertimbangkan bahasa Indonesia:
+- "besok" = ${new Date(today.getTime() + 86400000).toISOString().split('T')[0]}
+- "lusa" = ${new Date(today.getTime() + 172800000).toISOString().split('T')[0]}
+- "minggu depan" = ${new Date(today.getTime() + 604800000).toISOString().split('T')[0]}
+- "pagi" = 09:00 WIB
+- "siang" = 12:00 WIB
+- "sore" = 15:00 WIB
+- "malam" = 19:00 WIB
+
+Jika ada waktu spesifik, gabungkan dengan tanggal dalam format ISO 8601.
+Buat summary yang singkat dan informatif berdasarkan subtasks, checklist, dan templates yang dihasilkan.
+
+Balas hanya JSON tanpa code fence atau penjelasan tambahan. Input: "${text}"`;
 
     const result = await model.generateContent(prompt);
     const raw = result.response.text();
