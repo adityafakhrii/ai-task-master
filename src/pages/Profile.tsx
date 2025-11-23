@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, User, Lock } from 'lucide-react';
 
 export default function Profile() {
-    const { user, signOut } = useAuth();
+    const { user, signOut, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
@@ -19,12 +19,13 @@ export default function Profile() {
     const [confirmPassword, setConfirmPassword] = useState('');
 
     useEffect(() => {
+        if (authLoading) return;
         if (user) {
             setFullName(user.user_metadata.full_name || '');
         } else {
             navigate('/auth');
         }
-    }, [user, navigate]);
+    }, [user, authLoading, navigate]);
 
     const handleUpdateProfile = async (e: React.FormEvent) => {
         e.preventDefault();

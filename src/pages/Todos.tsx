@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,6 +20,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
+import { parseTask, dailySummary, semanticSearch, detectAnomaly } from '@/services/ai';
+import { Input as TextInput } from '@/components/ui/input';
+import { ToastAction } from '@/components/ui/toast';
 
 interface Todo {
   id: string;
@@ -34,11 +37,11 @@ interface Todo {
 }
 
 export default function Todos() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [todosLoading, setTodosLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
   const [formData, setFormData] = useState({
@@ -47,14 +50,21 @@ export default function Todos() {
     priority: 'medium' as 'low' | 'medium' | 'high',
     category: ''
   });
+  const [nlInput, setNlInput] = useState('');
+  const [aiHints, setAiHints] = useState<{ recommendedPriority?: 'low'|'medium'|'high'; estimatedMinutes?: number|null; suggestions?: { subtasks?: string[]; checklist?: string[]; templates?: string[] } } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const auditLogRef = useRef<Record<string, { snapshot: Todo; timestamp: string; actor: string }[]>>({});
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [dailyData, setDailyData] = useState<any | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) {
       navigate('/auth');
       return;
     }
     fetchTodos();
-  }, [user, navigate]);
+  }, [user, authLoading, navigate]);
 
   const fetchTodos = async () => {
     try {
@@ -72,7 +82,32 @@ export default function Todos() {
         description: error.message
       });
     } finally {
-      setLoading(false);
+      setTodosLoading(false);
+    }
+  };
+
+  const applyAIAssist = async () => {
+    if (!nlInput.trim()) return;
+    try {
+      const result = await parseTask(nlInput.trim());
+      setFormData({
+        title: result.title || formData.title,
+        description: formData.description,
+        priority: (result.priority === 'low' || result.priority === 'medium' || result.priority === 'high') ? result.priority : formData.priority,
+        category: result.category || formData.category
+      });
+      setAiHints({
+        recommendedPriority: (result.priority === 'low' || result.priority === 'medium' || result.priority === 'high') ? result.priority : undefined,
+        estimatedMinutes: typeof result.estimated_duration_minutes === 'number' ? result.estimated_duration_minutes : null,
+        suggestions: result.suggestions || {}
+      });
+      if (result.tags && Array.isArray(result.tags)) {
+        const tagCat = result.tags.find((t: string) => typeof t === 'string' && t.length > 0);
+        if (tagCat) setFormData((p) => ({ ...p, category: p.category || tagCat }));
+      }
+      toast({ title: 'AI berhasil memproses deskripsi tugas' });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Gagal AI parse', description: err.message });
     }
   };
 
@@ -82,6 +117,7 @@ export default function Todos() {
 
     try {
       if (editingTodo) {
+        const prev = { ...editingTodo };
         const { error } = await supabase
           .from('todos')
           .update({
@@ -94,6 +130,8 @@ export default function Todos() {
 
         if (error) throw error;
         toast({ title: "Tugas berhasil diupdate, mantap!" });
+        const log = auditLogRef.current[prev.id] || [];
+        auditLogRef.current[prev.id] = [...log, { snapshot: prev, timestamp: new Date().toISOString(), actor: user!.id }];
       } else {
         const { error } = await supabase
           .from('todos')
@@ -119,6 +157,71 @@ export default function Todos() {
         title: "Waduh Error",
         description: error.message
       });
+    }
+  };
+
+  const rollbackTodo = async (todo: Todo) => {
+    const history = auditLogRef.current[todo.id] || [];
+    const last = history[history.length - 1];
+    if (!last) {
+      toast({ title: 'Belum ada versi sebelumnya' });
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .update({
+          title: last.snapshot.title,
+          description: last.snapshot.description,
+          priority: last.snapshot.priority,
+          category: last.snapshot.category
+        })
+        .eq('id', todo.id);
+      if (error) throw error;
+      auditLogRef.current[todo.id] = history.slice(0, -1);
+      toast({ title: 'Rollback berhasil' });
+      fetchTodos();
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Rollback gagal', description: err.message });
+    }
+  };
+
+  const runDailySummary = async () => {
+    try {
+      const data = await dailySummary(todos);
+      setDailyData(data);
+      setSummaryOpen(true);
+      toast({ title: 'Ringkasan harian siap', description: 'Lihat detail di dialog', action: (
+        <ToastAction altText="Buka">Buka</ToastAction>
+      ) });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Gagal membuat ringkasan', description: err.message });
+    }
+  };
+
+  const runSemanticSearch = async () => {
+    if (!searchQuery.trim()) {
+      fetchTodos();
+      return;
+    }
+    try {
+      const ranking: string[] = await semanticSearch(searchQuery.trim(), todos);
+      const byId = new Map(todos.map(t => [t.id, t]));
+      const ordered = ranking.map(id => byId.get(id)).filter(Boolean) as Todo[];
+      const remainder = todos.filter(t => !ranking.includes(t.id));
+      setTodos([...ordered, ...remainder]);
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Pencarian gagal', description: err.message });
+    }
+  };
+
+  const runAnomalyDetection = async () => {
+    try {
+      const history = Object.values(auditLogRef.current).flat().map(h => ({ id: h.snapshot.id, timestamp: h.timestamp, actor: h.actor, data: h.snapshot }));
+      const res = await detectAnomaly(history);
+      toast({ title: 'Insight perilaku tugas', description: (res.insights || []).join(' | ') });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Deteksi gagal', description: err.message });
     }
   };
 
@@ -187,7 +290,7 @@ export default function Todos() {
     high: 'bg-red-500/10 text-red-500 border-red-500/20'
   };
 
-  if (loading) {
+  if (todosLoading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <p className="text-muted-foreground">Sabar ya bestie...</p>
@@ -204,12 +307,22 @@ export default function Todos() {
             <h1 className="text-3xl font-bold">To-Do List Gue</h1>
           </div>
           <div className="flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-2">
+              <TextInput placeholder="Cari semantik..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              <Button onClick={runSemanticSearch} variant="secondary" size="sm">Cari</Button>
+            </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <User className="h-4 w-4" />
               <span>{user?.user_metadata.full_name || user?.email}</span>
             </div>
             <Button onClick={() => navigate('/profile')} variant="outline" size="sm">
               Profil
+            </Button>
+            <Button onClick={runDailySummary} variant="outline" size="sm">
+              Ringkasan
+            </Button>
+            <Button onClick={runAnomalyDetection} variant="outline" size="sm">
+              Anomali
             </Button>
             <Button onClick={handleSignOut} variant="outline" size="sm">
               <LogOut className="h-4 w-4 mr-2" />
@@ -232,6 +345,35 @@ export default function Todos() {
                 {editingTodo ? 'Update detail tugas lo di bawah ini.' : 'Tambahin tugas baru ke list lo.'}
               </DialogDescription>
             </DialogHeader>
+            <div className="space-y-3">
+              <Label>Deskripsi Bahasa Alami</Label>
+              <Textarea placeholder="contoh: besok pagi kirim laporan ke klien" value={nlInput} onChange={(e) => setNlInput(e.target.value)} rows={2} />
+              <div className="flex gap-2">
+                <Button onClick={applyAIAssist} variant="secondary" type="button">Parse AI</Button>
+                {aiHints?.recommendedPriority && (
+                  <Badge variant="outline">Rekomendasi: {aiHints.recommendedPriority}</Badge>
+                )}
+                {typeof aiHints?.estimatedMinutes === 'number' && (
+                  <Badge variant="outline">Estimasi: {aiHints?.estimatedMinutes}m</Badge>
+                )}
+              </div>
+              {aiHints?.suggestions && (
+                <div className="grid md:grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <Label>Subtasks</Label>
+                    <div className="mt-1 space-y-1">{(aiHints.suggestions.subtasks || []).map((s, i) => (<div key={i} className="text-muted-foreground">• {s}</div>))}</div>
+                  </div>
+                  <div>
+                    <Label>Checklist</Label>
+                    <div className="mt-1 space-y-1">{(aiHints.suggestions.checklist || []).map((s, i) => (<div key={i} className="text-muted-foreground">• {s}</div>))}</div>
+                  </div>
+                  <div>
+                    <Label>Template</Label>
+                    <div className="mt-1 space-y-1">{(aiHints.suggestions.templates || []).map((s, i) => (<div key={i} className="text-muted-foreground">• {s}</div>))}</div>
+                  </div>
+                </div>
+              )}
+            </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Judul Tugas</Label>
@@ -334,6 +476,13 @@ export default function Todos() {
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
+                        onClick={() => rollbackTodo(todo)}
+                        size="icon"
+                        variant="ghost"
+                      >
+                        ↩
+                      </Button>
+                      <Button
                         onClick={() => deleteTodo(todo.id)}
                         size="icon"
                         variant="ghost"
@@ -349,6 +498,34 @@ export default function Todos() {
           )}
         </div>
       </div>
+      {summaryOpen && dailyData && (
+        <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Ringkasan Harian</DialogTitle>
+              <DialogDescription>Rangkuman tugas dan rekomendasi</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label>Urgent</Label>
+                <div className="mt-2 space-y-1">{(dailyData.urgent || []).map((u: any, i: number) => (<div key={i} className="text-red-500">• {u.title}</div>))}</div>
+              </div>
+              <div>
+                <Label>Hari Ini</Label>
+                <div className="mt-2 space-y-1">{(dailyData.today_list || []).map((t: any, i: number) => (<div key={i}>• {t.title}</div>))}</div>
+              </div>
+              <div>
+                <Label>Progres</Label>
+                <div className="mt-1 text-muted-foreground">{dailyData.progress_summary}</div>
+              </div>
+              <div>
+                <Label>Rekomendasi</Label>
+                <div className="mt-2 space-y-1">{(dailyData.recommendations || []).map((r: any, i: number) => (<div key={i}>• {r}</div>))}</div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
