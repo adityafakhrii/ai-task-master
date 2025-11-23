@@ -496,8 +496,16 @@ export default function Todos() {
             </DialogHeader>
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-3 pb-4">
-              <Label>Deskripsi Bahasa Alami</Label>
-              <Textarea placeholder="contoh: besok pagi kirim laporan ke klien" value={nlInput} onChange={(e) => setNlInput(e.target.value)} rows={2} />
+              <div className="space-y-2">
+                <Label>Deskripsi Bahasa Alami</Label>
+                <Textarea 
+                  placeholder="contoh: besok pagi kirim laporan ke klien" 
+                  value={nlInput} 
+                  onChange={(e) => setNlInput(e.target.value)} 
+                  rows={2}
+                  className="border-border"
+                />
+              </div>
               <div className="flex gap-2">
                 <Button onClick={applyAIAssist} variant="secondary" type="button" loading={aiLoading}>
                   {aiLoading ? 'AI lagi mikir...' : 'Parse AI'}

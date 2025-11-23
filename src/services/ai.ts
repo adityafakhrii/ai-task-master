@@ -1,51 +1,52 @@
+import { supabase } from '@/integrations/supabase/client';
+
 export async function parseTask(text: string) {
-  const res = await fetch('/api/ai/parse-task', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text })
+  const { data, error } = await supabase.functions.invoke('ai-parse-task', {
+    body: { text, type: 'parse' }
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Gagal memproses AI');
+
+  if (error) {
+    throw new Error(error.message || 'Gagal memproses AI');
   }
-  return res.json();
+
+  return data;
 }
 
 export async function dailySummary(tasks: any[]) {
-  const res = await fetch('/api/ai/daily-summary', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tasks })
+  const { data, error } = await supabase.functions.invoke('ai-parse-task', {
+    body: { text: JSON.stringify(tasks).slice(0, 8000), type: 'summary' }
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Gagal membuat ringkasan');
+
+  if (error) {
+    throw new Error(error.message || 'Gagal membuat ringkasan');
   }
-  return res.json();
+
+  return data;
 }
 
 export async function semanticSearch(query: string, tasks: any[]) {
-  const res = await fetch('/api/ai/search', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, tasks })
+  const { data, error } = await supabase.functions.invoke('ai-parse-task', {
+    body: { 
+      text: `Query: ${query}\nTasks: ${JSON.stringify(tasks).slice(0, 8000)}`,
+      type: 'search'
+    }
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Gagal melakukan pencarian');
+
+  if (error) {
+    throw new Error(error.message || 'Gagal melakukan pencarian');
   }
-  return res.json();
+
+  return data;
 }
 
 export async function detectAnomaly(history: any[]) {
-  const res = await fetch('/api/ai/anomaly', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ history })
+  const { data, error } = await supabase.functions.invoke('ai-parse-task', {
+    body: { text: JSON.stringify(history).slice(0, 8000), type: 'anomaly' }
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Gagal mendeteksi anomali');
+
+  if (error) {
+    throw new Error(error.message || 'Gagal mendeteksi anomali');
   }
-  return res.json();
+
+  return data;
 }
