@@ -61,6 +61,17 @@ export default function Todos() {
   const [anomalyData, setAnomalyData] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
 
+  // Loading states
+  const [aiLoading, setAiLoading] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [anomalyLoading, setAnomalyLoading] = useState(false);
+  const [signOutLoading, setSignOutLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState<Record<string, boolean>>({});
+  const [rollbackLoading, setRollbackLoading] = useState<Record<string, boolean>>({});
+  const [completeLoading, setCompleteLoading] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -93,6 +104,7 @@ export default function Todos() {
   const applyAIAssist = async () => {
     if (!nlInput.trim()) return;
     try {
+      setAiLoading(true);
       const result = await parseTask(nlInput.trim());
       setFormData({
         title: result.title || formData.title,
@@ -112,6 +124,8 @@ export default function Todos() {
       toast({ title: 'AI berhasil memproses deskripsi tugas' });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Gagal AI parse', description: err.message });
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -120,6 +134,7 @@ export default function Todos() {
     if (!formData.title.trim()) return;
 
     try {
+      setSubmitLoading(true);
       if (editingTodo) {
         const prev = { ...editingTodo };
         const { error } = await supabase
@@ -161,6 +176,8 @@ export default function Todos() {
         title: "Waduh Error",
         description: error.message
       });
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
@@ -172,6 +189,7 @@ export default function Todos() {
       return;
     }
     try {
+      setRollbackLoading(prev => ({ ...prev, [todo.id]: true }));
       const { error } = await supabase
         .from('todos')
         .update({
@@ -187,11 +205,14 @@ export default function Todos() {
       fetchTodos();
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Rollback gagal', description: err.message });
+    } finally {
+      setRollbackLoading(prev => ({ ...prev, [todo.id]: false }));
     }
   };
 
   const runDailySummary = async () => {
     try {
+      setSummaryLoading(true);
       const data = await dailySummary(todos);
       setDailyData(data);
       setSummaryOpen(true);
@@ -202,6 +223,8 @@ export default function Todos() {
       });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Gagal membuat ringkasan', description: err.message });
+    } finally {
+      setSummaryLoading(false);
     }
   };
 
@@ -211,6 +234,7 @@ export default function Todos() {
       return;
     }
     try {
+      setSearchLoading(true);
       const ranking: string[] = await semanticSearch(searchQuery.trim(), todos);
       const byId = new Map(todos.map(t => [t.id, t]));
       const ordered = ranking.map(id => byId.get(id)).filter(Boolean) as Todo[];
@@ -218,22 +242,28 @@ export default function Todos() {
       setTodos([...ordered, ...remainder]);
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Pencarian gagal', description: err.message });
+    } finally {
+      setSearchLoading(false);
     }
   };
 
   const runAnomalyDetection = async () => {
     try {
+      setAnomalyLoading(true);
       const history = Object.values(auditLogRef.current).flat().map(h => ({ id: h.snapshot.id, timestamp: h.timestamp, actor: h.actor, data: h.snapshot }));
       const res = await detectAnomaly(history);
       setAnomalyData(res);
       setAnomalyOpen(true);
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Deteksi gagal', description: err.message });
+    } finally {
+      setAnomalyLoading(false);
     }
   };
 
   const toggleComplete = async (todo: Todo) => {
     try {
+      setCompleteLoading(prev => ({ ...prev, [todo.id]: true }));
       const { error } = await supabase
         .from('todos')
         .update({ completed: !todo.completed })
@@ -247,11 +277,14 @@ export default function Todos() {
         title: "Waduh Error",
         description: error.message
       });
+    } finally {
+      setCompleteLoading(prev => ({ ...prev, [todo.id]: false }));
     }
   };
 
   const deleteTodo = async (id: string) => {
     try {
+      setDeleteLoading(prev => ({ ...prev, [id]: true }));
       const { error } = await supabase
         .from('todos')
         .delete()
@@ -266,6 +299,8 @@ export default function Todos() {
         title: "Waduh Error",
         description: error.message
       });
+    } finally {
+      setDeleteLoading(prev => ({ ...prev, [id]: false }));
     }
   };
 
@@ -287,7 +322,9 @@ export default function Todos() {
   };
 
   const handleSignOut = async () => {
+    setSignOutLoading(true);
     await signOut();
+    setSignOutLoading(false);
     navigate('/auth');
   };
 
@@ -338,9 +375,10 @@ export default function Todos() {
                 variant="ghost"
                 size="sm"
                 aria-label="Keluar dari aplikasi"
+                loading={signOutLoading}
               >
                 <LogOut className="h-4 w-4" aria-hidden="true" />
-                <span className="sr-only">Keluar</span>
+                <span className="sr-only">{signOutLoading ? 'Cabut dulu...' : 'Keluar'}</span>
               </Button>
             </div>
           </div>
@@ -365,8 +403,9 @@ export default function Todos() {
                 variant="secondary"
                 size="sm"
                 aria-label="Mulai pencarian"
+                loading={searchLoading}
               >
-                Cari
+                {searchLoading ? 'Nyari...' : 'Cari'}
               </Button>
             </div>
 
@@ -378,8 +417,9 @@ export default function Todos() {
                 size="sm"
                 className="whitespace-nowrap"
                 aria-label="Lihat ringkasan harian"
+                loading={summaryLoading}
               >
-                Ringkasan
+                {summaryLoading ? 'Tunggu...' : 'Ringkasan'}
               </Button>
               <Button
                 onClick={runAnomalyDetection}
@@ -387,8 +427,9 @@ export default function Todos() {
                 size="sm"
                 className="whitespace-nowrap"
                 aria-label="Deteksi anomali tugas"
+                loading={anomalyLoading}
               >
-                Anomali
+                {anomalyLoading ? 'Analisis...' : 'Anomali'}
               </Button>
             </div>
           </div>
@@ -417,7 +458,9 @@ export default function Todos() {
               <Label>Deskripsi Bahasa Alami</Label>
               <Textarea placeholder="contoh: besok pagi kirim laporan ke klien" value={nlInput} onChange={(e) => setNlInput(e.target.value)} rows={2} />
               <div className="flex gap-2">
-                <Button onClick={applyAIAssist} variant="secondary" type="button">Parse AI</Button>
+                <Button onClick={applyAIAssist} variant="secondary" type="button" loading={aiLoading}>
+                  {aiLoading ? 'AI lagi mikir...' : 'Parse AI'}
+                </Button>
                 {aiHints?.recommendedPriority && (
                   <Badge variant="outline">Rekomendasi: {aiHints.recommendedPriority}</Badge>
                 )}
@@ -492,8 +535,8 @@ export default function Todos() {
                   />
                 </div>
               </div>
-              <Button type="submit" className="w-full">
-                {editingTodo ? 'Update Tugas' : 'Simpan Tugas'}
+              <Button type="submit" className="w-full" loading={submitLoading}>
+                {submitLoading ? 'Tunggu bentar yak...' : editingTodo ? 'Update Tugas' : 'Simpan Tugas'}
               </Button>
             </form>
           </DialogContent>
@@ -525,12 +568,18 @@ export default function Todos() {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3 flex-1">
-                        <Checkbox
-                          checked={todo.completed}
-                          onCheckedChange={() => toggleComplete(todo)}
-                          className="mt-1"
-                          aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
-                        />
+                        {completeLoading[todo.id] ? (
+                          <div className="mt-1 h-4 w-4 flex items-center justify-center">
+                            <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                          </div>
+                        ) : (
+                          <Checkbox
+                            checked={todo.completed}
+                            onCheckedChange={() => toggleComplete(todo)}
+                            className="mt-1"
+                            aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
+                          />
+                        )}
                         <div className="flex-1">
                           <CardTitle className="text-lg">
                             {todo.title}
@@ -562,8 +611,9 @@ export default function Todos() {
                           size="icon"
                           variant="ghost"
                           aria-label={`Rollback tugas ${todo.title}`}
+                          loading={rollbackLoading[todo.id]}
                         >
-                          <span aria-hidden="true">↩</span>
+                          {!rollbackLoading[todo.id] && <span aria-hidden="true">↩</span>}
                         </Button>
                         <Button
                           onClick={() => deleteTodo(todo.id)}
@@ -571,8 +621,9 @@ export default function Todos() {
                           variant="ghost"
                           className="text-destructive hover:text-destructive"
                           aria-label={`Hapus tugas ${todo.title}`}
+                          loading={deleteLoading[todo.id]}
                         >
-                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                          {!deleteLoading[todo.id] && <Trash2 className="h-4 w-4" aria-hidden="true" />}
                         </Button>
                       </div>
                     </div>
@@ -597,12 +648,18 @@ export default function Todos() {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3 flex-1">
-                        <Checkbox
-                          checked={todo.completed}
-                          onCheckedChange={() => toggleComplete(todo)}
-                          className="mt-1"
-                          aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
-                        />
+                        {completeLoading[todo.id] ? (
+                          <div className="mt-1 h-4 w-4 flex items-center justify-center">
+                            <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                          </div>
+                        ) : (
+                          <Checkbox
+                            checked={todo.completed}
+                            onCheckedChange={() => toggleComplete(todo)}
+                            className="mt-1"
+                            aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
+                          />
+                        )}
                         <div className="flex-1">
                           <CardTitle className="text-lg line-through text-muted-foreground">
                             {todo.title}
@@ -627,8 +684,9 @@ export default function Todos() {
                           variant="ghost"
                           className="text-destructive hover:text-destructive"
                           aria-label={`Hapus tugas ${todo.title}`}
+                          loading={deleteLoading[todo.id]}
                         >
-                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                          {!deleteLoading[todo.id] && <Trash2 className="h-4 w-4" aria-hidden="true" />}
                         </Button>
                       </div>
                     </div>
