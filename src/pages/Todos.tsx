@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, LogOut, Trash2, Edit, CheckCircle2, User } from 'lucide-react';
+import { Plus, LogOut, Trash2, Edit, CheckCircle2, User, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { parseTask, dailySummary, semanticSearch, detectAnomaly } from '@/services/ai';
 import { Input as TextInput } from '@/components/ui/input';
 import { ToastAction } from '@/components/ui/toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Todo {
   id: string;
@@ -51,11 +52,14 @@ export default function Todos() {
     category: ''
   });
   const [nlInput, setNlInput] = useState('');
-  const [aiHints, setAiHints] = useState<{ recommendedPriority?: 'low'|'medium'|'high'; estimatedMinutes?: number|null; suggestions?: { subtasks?: string[]; checklist?: string[]; templates?: string[] } } | null>(null);
+  const [aiHints, setAiHints] = useState<{ recommendedPriority?: 'low' | 'medium' | 'high'; estimatedMinutes?: number | null; suggestions?: { subtasks?: string[]; checklist?: string[]; templates?: string[] } } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const auditLogRef = useRef<Record<string, { snapshot: Todo; timestamp: string; actor: string }[]>>({});
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [dailyData, setDailyData] = useState<any | null>(null);
+  const [anomalyOpen, setAnomalyOpen] = useState(false);
+  const [anomalyData, setAnomalyData] = useState<any | null>(null);
+  const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
 
   useEffect(() => {
     if (authLoading) return;
@@ -191,9 +195,11 @@ export default function Todos() {
       const data = await dailySummary(todos);
       setDailyData(data);
       setSummaryOpen(true);
-      toast({ title: 'Ringkasan harian siap', description: 'Lihat detail di dialog', action: (
-        <ToastAction altText="Buka">Buka</ToastAction>
-      ) });
+      toast({
+        title: 'Ringkasan harian siap', description: 'Lihat detail di dialog', action: (
+          <ToastAction altText="Buka">Buka</ToastAction>
+        )
+      });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Gagal membuat ringkasan', description: err.message });
     }
@@ -219,7 +225,8 @@ export default function Todos() {
     try {
       const history = Object.values(auditLogRef.current).flat().map(h => ({ id: h.snapshot.id, timestamp: h.timestamp, actor: h.actor, data: h.snapshot }));
       const res = await detectAnomaly(history);
-      toast({ title: 'Insight perilaku tugas', description: (res.insights || []).join(' | ') });
+      setAnomalyData(res);
+      setAnomalyOpen(true);
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Deteksi gagal', description: err.message });
     }
@@ -301,40 +308,101 @@ export default function Todos() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
       <div className="container mx-auto p-4 max-w-4xl">
-        <div className="flex justify-between items-center mb-8 pt-8">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">To-Do List Gue</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-2">
-              <TextInput placeholder="Cari semantik..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-              <Button onClick={runSemanticSearch} variant="secondary" size="sm">Cari</Button>
+        {/* Mobile-First Header */}
+        <header className="mb-6 space-y-4" role="banner">
+          {/* Top Bar: Branding + User Actions */}
+          <div className="flex items-center justify-between gap-4">
+            {/* Branding */}
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-7 w-7 text-primary flex-shrink-0" aria-hidden="true" />
+              <div className="min-w-0">
+                <h1 className="text-2xl sm:text-3xl font-bold leading-tight">CatetYuk</h1>
+                <p className="text-xs text-muted-foreground hidden sm:block">Atur tugas dengan AI</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <User className="h-4 w-4" />
-              <span>{user?.user_metadata.full_name || user?.email}</span>
+
+            {/* User Menu - Mobile Optimized */}
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => navigate('/profile')}
+                variant="ghost"
+                size="sm"
+                className="gap-2"
+                aria-label="Buka profil pengguna"
+              >
+                <User className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">{user?.user_metadata.full_name || user?.email?.split('@')[0] || 'Profil'}</span>
+              </Button>
+              <Button
+                onClick={handleSignOut}
+                variant="ghost"
+                size="sm"
+                aria-label="Keluar dari aplikasi"
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">Keluar</span>
+              </Button>
             </div>
-            <Button onClick={() => navigate('/profile')} variant="outline" size="sm">
-              Profil
-            </Button>
-            <Button onClick={runDailySummary} variant="outline" size="sm">
-              Ringkasan
-            </Button>
-            <Button onClick={runAnomalyDetection} variant="outline" size="sm">
-              Anomali
-            </Button>
-            <Button onClick={handleSignOut} variant="outline" size="sm">
-              <LogOut className="h-4 w-4 mr-2" />
-              Cabut Dulu
-            </Button>
           </div>
-        </div>
+
+          {/* Search Bar - Full Width on Mobile */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex-1 flex gap-2">
+              <TextInput
+                placeholder="Cari tugas..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    runSemanticSearch();
+                  }
+                }}
+                className="flex-1"
+                aria-label="Cari tugas"
+              />
+              <Button
+                onClick={runSemanticSearch}
+                variant="secondary"
+                size="sm"
+                aria-label="Mulai pencarian"
+              >
+                Cari
+              </Button>
+            </div>
+
+            {/* AI Features - Horizontal Scroll on Mobile */}
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              <Button
+                onClick={runDailySummary}
+                variant="outline"
+                size="sm"
+                className="whitespace-nowrap"
+                aria-label="Lihat ringkasan harian"
+              >
+                Ringkasan
+              </Button>
+              <Button
+                onClick={runAnomalyDetection}
+                variant="outline"
+                size="sm"
+                className="whitespace-nowrap"
+                aria-label="Deteksi anomali tugas"
+              >
+                Anomali
+              </Button>
+            </div>
+          </div>
+        </header>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openNewDialog} className="w-full mb-6" size="lg">
-              <Plus className="h-4 w-4 mr-2" />
+            <Button
+              onClick={openNewDialog}
+              className="w-full mb-6"
+              size="lg"
+              aria-label="Tambah tugas baru"
+            >
+              <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
               Tambah Tugas Baru
             </Button>
           </DialogTrigger>
@@ -431,72 +499,145 @@ export default function Todos() {
           </DialogContent>
         </Dialog>
 
-        <div className="space-y-3">
-          {todos.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Belum ada tugas nih. Yuk bikin satu, jangan mager!</p>
-              </CardContent>
-            </Card>
-          ) : (
-            todos.map((todo) => (
-              <Card key={todo.id} className="hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 flex-1">
-                      <Checkbox
-                        checked={todo.completed}
-                        onCheckedChange={() => toggleComplete(todo)}
-                        className="mt-1"
-                      />
-                      <div className="flex-1">
-                        <CardTitle className={`text-lg ${todo.completed ? 'line-through text-muted-foreground' : ''}`}>
-                          {todo.title}
-                        </CardTitle>
-                        {todo.description && (
-                          <CardDescription className="mt-1">{todo.description}</CardDescription>
-                        )}
-                        <div className="flex gap-2 mt-2">
-                          <Badge variant="outline" className={priorityColors[todo.priority]}>
-                            {todo.priority}
-                          </Badge>
-                          {todo.category && (
-                            <Badge variant="outline">{todo.category}</Badge>
+        {/* Todo List with Tabs */}
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'active' | 'completed')} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6" aria-label="Filter tugas berdasarkan status">
+            <TabsTrigger value="active" aria-label={`Tugas belum selesai, ${todos.filter(t => !t.completed).length} tugas`}>
+              Belum Beres ({todos.filter(t => !t.completed).length})
+            </TabsTrigger>
+            <TabsTrigger value="completed" aria-label={`Tugas sudah selesai, ${todos.filter(t => t.completed).length} tugas`}>
+              Udah Beres ({todos.filter(t => t.completed).length})
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Active Todos Tab */}
+          <TabsContent value="active" className="space-y-3">
+            {todos.filter(t => !t.completed).length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">Belum ada tugas nih. Yuk bikin satu, jangan mager!</p>
+                </CardContent>
+              </Card>
+            ) : (
+              todos.filter(t => !t.completed).map((todo) => (
+                <Card key={todo.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3 flex-1">
+                        <Checkbox
+                          checked={todo.completed}
+                          onCheckedChange={() => toggleComplete(todo)}
+                          className="mt-1"
+                          aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
+                        />
+                        <div className="flex-1">
+                          <CardTitle className="text-lg">
+                            {todo.title}
+                          </CardTitle>
+                          {todo.description && (
+                            <CardDescription className="mt-1">{todo.description}</CardDescription>
                           )}
+                          <div className="flex gap-2 mt-2">
+                            <Badge variant="outline" className={priorityColors[todo.priority]}>
+                              {todo.priority}
+                            </Badge>
+                            {todo.category && (
+                              <Badge variant="outline">{todo.category}</Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => openEditDialog(todo)}
+                          size="icon"
+                          variant="ghost"
+                          aria-label={`Edit tugas ${todo.title}`}
+                        >
+                          <Edit className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          onClick={() => rollbackTodo(todo)}
+                          size="icon"
+                          variant="ghost"
+                          aria-label={`Rollback tugas ${todo.title}`}
+                        >
+                          <span aria-hidden="true">↩</span>
+                        </Button>
+                        <Button
+                          onClick={() => deleteTodo(todo.id)}
+                          size="icon"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          aria-label={`Hapus tugas ${todo.title}`}
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => openEditDialog(todo)}
-                        size="icon"
-                        variant="ghost"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        onClick={() => rollbackTodo(todo)}
-                        size="icon"
-                        variant="ghost"
-                      >
-                        ↩
-                      </Button>
-                      <Button
-                        onClick={() => deleteTodo(todo.id)}
-                        size="icon"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
+                  </CardHeader>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+
+          {/* Completed Todos Tab */}
+          <TabsContent value="completed" className="space-y-3">
+            {todos.filter(t => t.completed).length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">Belum ada tugas yang selesai. Ayo semangat!</p>
+                </CardContent>
               </Card>
-            ))
-          )}
-        </div>
+            ) : (
+              todos.filter(t => t.completed).map((todo) => (
+                <Card key={todo.id} className="hover:shadow-md transition-shadow bg-secondary/20">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3 flex-1">
+                        <Checkbox
+                          checked={todo.completed}
+                          onCheckedChange={() => toggleComplete(todo)}
+                          className="mt-1"
+                          aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
+                        />
+                        <div className="flex-1">
+                          <CardTitle className="text-lg line-through text-muted-foreground">
+                            {todo.title}
+                          </CardTitle>
+                          {todo.description && (
+                            <CardDescription className="mt-1">{todo.description}</CardDescription>
+                          )}
+                          <div className="flex gap-2 mt-2">
+                            <Badge variant="outline" className={priorityColors[todo.priority]}>
+                              {todo.priority}
+                            </Badge>
+                            {todo.category && (
+                              <Badge variant="outline">{todo.category}</Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => deleteTodo(todo.id)}
+                          size="icon"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          aria-label={`Hapus tugas ${todo.title}`}
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
       {summaryOpen && dailyData && (
         <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
@@ -522,6 +663,36 @@ export default function Todos() {
                 <Label>Rekomendasi</Label>
                 <div className="mt-2 space-y-1">{(dailyData.recommendations || []).map((r: any, i: number) => (<div key={i}>• {r}</div>))}</div>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+      {anomalyOpen && anomalyData && (
+        <Dialog open={anomalyOpen} onOpenChange={setAnomalyOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Insight Perilaku Tugas</DialogTitle>
+              <DialogDescription>Analisis pola dan anomali dari aktivitas tugas</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label>Insights</Label>
+                <div className="mt-2 space-y-1">
+                  {(anomalyData.insights || []).map((insight: string, i: number) => (
+                    <div key={i} className="text-sm">• {insight}</div>
+                  ))}
+                </div>
+              </div>
+              {anomalyData.recommendations && anomalyData.recommendations.length > 0 && (
+                <div>
+                  <Label>Rekomendasi</Label>
+                  <div className="mt-2 space-y-1">
+                    {anomalyData.recommendations.map((rec: string, i: number) => (
+                      <div key={i} className="text-sm text-muted-foreground">• {rec}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
