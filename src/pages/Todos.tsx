@@ -498,11 +498,10 @@ export default function Todos() {
               <div className="space-y-3 pb-4">
               <div className="space-y-2">
                 <Label>Deskripsi Bahasa Alami</Label>
-                <Textarea 
+                <Input 
                   placeholder="contoh: besok pagi kirim laporan ke klien" 
                   value={nlInput} 
                   onChange={(e) => setNlInput(e.target.value)} 
-                  rows={2}
                   className="border-border"
                 />
               </div>
@@ -586,7 +585,7 @@ export default function Todos() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Tenggat Waktu (Opsional)</Label>
+                <Label>Tanggal & Jam Jatuh Tempo (Opsional)</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -597,7 +596,7 @@ export default function Todos() {
                       )}
                     >
                       <Calendar className="mr-2 h-4 w-4" />
-                      {formData.due_date ? format(formData.due_date, "PPP", { locale: idLocale }) : "Pilih tanggal"}
+                      {formData.due_date ? format(formData.due_date, "PPP 'pukul' HH:mm", { locale: idLocale }) : "Pilih tanggal & jam"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -607,6 +606,40 @@ export default function Todos() {
                       onSelect={(date) => setFormData({ ...formData, due_date: date || null })}
                       initialFocus
                     />
+                    <div className="p-3 border-t border-border">
+                      <Label className="text-sm mb-2 block">Jam</Label>
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="23"
+                          placeholder="HH"
+                          value={formData.due_date ? formData.due_date.getHours() : ''}
+                          onChange={(e) => {
+                            const hours = parseInt(e.target.value) || 0;
+                            const newDate = formData.due_date ? new Date(formData.due_date) : new Date();
+                            newDate.setHours(hours);
+                            setFormData({ ...formData, due_date: newDate });
+                          }}
+                          className="w-20"
+                        />
+                        <span>:</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="59"
+                          placeholder="MM"
+                          value={formData.due_date ? formData.due_date.getMinutes() : ''}
+                          onChange={(e) => {
+                            const minutes = parseInt(e.target.value) || 0;
+                            const newDate = formData.due_date ? new Date(formData.due_date) : new Date();
+                            newDate.setMinutes(minutes);
+                            setFormData({ ...formData, due_date: newDate });
+                          }}
+                          className="w-20"
+                        />
+                      </div>
+                    </div>
                   </PopoverContent>
                 </Popover>
               </div>
