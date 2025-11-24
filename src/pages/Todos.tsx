@@ -265,14 +265,14 @@ export default function Todos() {
     }
   };
 
-  const runSemanticSearch = async () => {
-    if (!searchQuery.trim()) {
+  const runSemanticSearch = async (query: string) => {
+    if (!query.trim()) {
       fetchTodos();
       return;
     }
     try {
       setSearchLoading(true);
-      const ranking: string[] = await semanticSearch(searchQuery.trim(), todos);
+      const ranking: string[] = await semanticSearch(query.trim(), todos);
       const byId = new Map(todos.map(t => [t.id, t]));
       const ordered = ranking.map(id => byId.get(id)).filter(Boolean) as Todo[];
       const remainder = todos.filter(t => !ranking.includes(t.id));
@@ -283,6 +283,19 @@ export default function Todos() {
       setSearchLoading(false);
     }
   };
+
+  // Real-time search with debouncing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery.trim()) {
+        runSemanticSearch(searchQuery);
+      } else {
+        fetchTodos();
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const runAnomalyDetection = async () => {
     try {
@@ -427,26 +440,17 @@ export default function Todos() {
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="flex-1 flex gap-2">
               <TextInput
-                placeholder="Cari tugas..."
+                placeholder="Cari tugas... (real-time)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    runSemanticSearch();
-                  }
-                }}
                 className="flex-1"
                 aria-label="Cari tugas"
               />
-              <Button
-                onClick={runSemanticSearch}
-                variant="secondary"
-                size="sm"
-                aria-label="Mulai pencarian"
-                loading={searchLoading}
-              >
-                {searchLoading ? 'Nyari...' : 'Cari'}
-              </Button>
+              {searchLoading && (
+                <div className="flex items-center">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
             </div>
 
             {/* AI Features - Horizontal Scroll on Mobile */}
