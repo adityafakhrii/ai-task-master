@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, ListTodo, Sparkles } from 'lucide-react';
+import Footer from '@/components/Footer';
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -23,8 +24,9 @@ const Index = () => {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-secondary/20">
-      <div className="text-center space-y-8 p-8 max-w-2xl">
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="text-center space-y-8 p-8 max-w-2xl">
         <div className="flex justify-center mb-6">
           <CheckCircle2 className="h-20 w-20 text-primary" />
         </div>
@@ -54,7 +56,9 @@ const Index = () => {
         <Button onClick={() => navigate('/auth')} size="lg" className="mt-8">
           Gasken Mulai!
         </Button>
+        </div>
       </div>
+      <Footer />
     </div>
   );
 };

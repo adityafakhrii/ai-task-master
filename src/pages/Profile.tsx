@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, User, Lock } from 'lucide-react';
+import Footer from '@/components/Footer';
 
 export default function Profile() {
     const { user, signOut, loading: authLoading } = useAuth();
@@ -89,8 +90,8 @@ export default function Profile() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 p-4">
-            <div className="container mx-auto max-w-2xl pt-8">
+        <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-secondary/20 p-4">
+            <div className="flex-1 container mx-auto max-w-2xl pt-8">
                 <Button
                     variant="ghost"
                     onClick={() => navigate('/todos')}
@@ -171,6 +172,7 @@ export default function Profile() {
                     </Card>
                 </div>
             </div>
+            <Footer />
         </div>
     );
 }

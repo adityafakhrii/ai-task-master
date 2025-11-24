@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { z } from 'zod';
 import { CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import Footer from '@/components/Footer';
 
 const loginSchema = z.object({
   email: z.string().email('Email gak valid nih, coba cek lagi.'),
@@ -72,8 +73,9 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-secondary/20 p-4">
-      <Card className="w-full max-w-md shadow-xl">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-secondary/20 p-4">
+      <div className="flex-1 flex items-center justify-center">
+        <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center mb-2">
             <CheckCircle2 className="h-12 w-12 text-primary" />
@@ -196,6 +198,8 @@ export default function Auth() {
           </Tabs>
         </CardContent>
       </Card>
+      </div>
+      <Footer />
     </div>
   );
 }
