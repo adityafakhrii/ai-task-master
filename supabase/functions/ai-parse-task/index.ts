@@ -64,7 +64,20 @@ Buat summary singkat 1-2 kalimat yang informatif.`;
     } else if (type === 'search') {
       systemPrompt = 'Cari secara semantik dan return array string id yang relevan berdasarkan query. Return JSON array saja.';
     } else if (type === 'anomaly') {
-      systemPrompt = 'Deteksi anomali perilaku tugas. Return JSON: {"insights": string[], "recommendations": string[]}';
+      systemPrompt = `Analisis perilaku dan pola tugas pengguna. Identifikasi:
+- Pola pembuatan dan penyelesaian tugas (waktu, frekuensi)
+- Tugas dengan prioritas tinggi yang belum diselesaikan
+- Tugas yang sering terlambat atau overdue
+- Kategori tugas yang paling sering dibuat
+- Waktu estimasi vs waktu aktual
+- Pola prokrastinasi atau kebiasaan positif
+
+Return JSON: {
+  "insights": string[], // 3-5 insight spesifik tentang perilaku user
+  "recommendations": string[] // 3-5 rekomendasi actionable
+}
+
+Berikan analisis yang personal dan konstruktif berdasarkan data tugas yang ada.`;
     }
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
