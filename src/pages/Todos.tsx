@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, LogOut, Trash2, Edit, CheckCircle2, User, Loader2, Calendar, Clock } from 'lucide-react';
+import { Plus, LogOut, Trash2, Edit, CheckCircle2, User, Loader2, Calendar, Clock, ArrowUpDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -77,6 +77,9 @@ export default function Todos() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterDateRange, setFilterDateRange] = useState<'all' | 'today' | 'week' | 'overdue'>('all');
   const [filterTag, setFilterTag] = useState<string>('all');
+  
+  // Sort state
+  const [sortBy, setSortBy] = useState<'urgency' | 'priority' | 'due_date' | 'created_at' | 'title'>('urgency');
 
   // Loading states
   const [aiLoading, setAiLoading] = useState(false);
@@ -164,23 +167,46 @@ export default function Todos() {
       });
     }
 
-    // Sort by urgency: high priority first, then by closest deadline
+    // Apply sorting based on sortBy state
     filtered.sort((a, b) => {
-      // Priority order: high > medium > low
-      const priorityOrder = { high: 3, medium: 2, low: 1 };
-      const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
-      
-      if (priorityDiff !== 0) return priorityDiff;
+      switch (sortBy) {
+        case 'urgency':
+          // Priority order: high > medium > low
+          const priorityOrder = { high: 3, medium: 2, low: 1 };
+          const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
+          
+          if (priorityDiff !== 0) return priorityDiff;
 
-      // If same priority, sort by deadline (closest first)
-      if (a.due_date && b.due_date) {
-        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+          // If same priority, sort by deadline (closest first)
+          if (a.due_date && b.due_date) {
+            return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+          }
+          if (a.due_date) return -1;
+          if (b.due_date) return 1;
+
+          // If no deadline, sort by created date (newest first)
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        
+        case 'priority':
+          const pOrder = { high: 3, medium: 2, low: 1 };
+          return pOrder[b.priority] - pOrder[a.priority];
+        
+        case 'due_date':
+          // Tasks with no due date go to the end
+          if (!a.due_date && !b.due_date) return 0;
+          if (!a.due_date) return 1;
+          if (!b.due_date) return -1;
+          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+        
+        case 'created_at':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        
+        case 'title':
+          return a.title.localeCompare(b.title);
+        
+        default:
+          return 0;
       }
-      if (a.due_date) return -1;
-      if (b.due_date) return 1;
-
-      // If no deadline, sort by created date (newest first)
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
     return filtered;
@@ -374,8 +400,21 @@ export default function Todos() {
   const runAnomalyDetection = async () => {
     try {
       setAnomalyLoading(true);
-      const history = Object.values(auditLogRef.current).flat().map(h => ({ id: h.snapshot.id, timestamp: h.timestamp, actor: h.actor, data: h.snapshot }));
-      const res = await detectAnomaly(history);
+      
+      // Prepare task data for anomaly detection - include all todos with their metadata
+      const taskData = todos.map(todo => ({
+        id: todo.id,
+        title: todo.title,
+        priority: todo.priority,
+        category: todo.category,
+        completed: todo.completed,
+        created_at: todo.created_at,
+        updated_at: todo.updated_at,
+        due_date: todo.due_date,
+        estimated_duration_minutes: todo.estimated_duration_minutes
+      }));
+      
+      const res = await detectAnomaly(taskData);
       setAnomalyData(res);
       setAnomalyOpen(true);
     } catch (err: any) {
@@ -553,52 +592,69 @@ export default function Todos() {
           </div>
 
           {/* Filter Section */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <Select value={filterPriority} onValueChange={(value: any) => setFilterPriority(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Prioritas" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Prioritas</SelectItem>
-                <SelectItem value="high">⚡ Penting Banget</SelectItem>
-                <SelectItem value="medium">📌 Biasa Aja</SelectItem>
-                <SelectItem value="low">💤 Santai</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <Select value={filterPriority} onValueChange={(value: any) => setFilterPriority(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Prioritas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Prioritas</SelectItem>
+                  <SelectItem value="high">Penting Banget</SelectItem>
+                  <SelectItem value="medium">Biasa Aja</SelectItem>
+                  <SelectItem value="low">Santai</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger>
-                <SelectValue placeholder="Kategori" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Kategori</SelectItem>
-                {uniqueCategories.map((cat) => (
-                  <SelectItem key={cat} value={cat!}>{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Kategori</SelectItem>
+                  {uniqueCategories.map((cat) => (
+                    <SelectItem key={cat} value={cat!}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <Select value={filterDateRange} onValueChange={(value: any) => setFilterDateRange(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Deadline" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Deadline</SelectItem>
-                <SelectItem value="overdue">🔴 Telat</SelectItem>
-                <SelectItem value="today">📅 Hari Ini</SelectItem>
-                <SelectItem value="week">📆 Minggu Ini</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={filterDateRange} onValueChange={(value: any) => setFilterDateRange(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Deadline" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Deadline</SelectItem>
+                  <SelectItem value="overdue">Telat</SelectItem>
+                  <SelectItem value="today">Hari Ini</SelectItem>
+                  <SelectItem value="week">Minggu Ini</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={filterTag} onValueChange={setFilterTag}>
-              <SelectTrigger>
-                <SelectValue placeholder="Tag" />
+              <Select value={filterTag} onValueChange={setFilterTag}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Tag" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Tag</SelectItem>
+                  {uniqueTags.map((tag) => (
+                    <SelectItem key={tag} value={tag}>#{tag}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Sort Section */}
+            <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+              <SelectTrigger className="w-full sm:w-64">
+                <ArrowUpDown className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Urutkan" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua Tag</SelectItem>
-                {uniqueTags.map((tag) => (
-                  <SelectItem key={tag} value={tag}>#{tag}</SelectItem>
-                ))}
+                <SelectItem value="urgency">Urgensi (Default)</SelectItem>
+                <SelectItem value="priority">Prioritas</SelectItem>
+                <SelectItem value="due_date">Tanggal Deadline</SelectItem>
+                <SelectItem value="created_at">Tanggal Dibuat</SelectItem>
+                <SelectItem value="title">Judul (A-Z)</SelectItem>
               </SelectContent>
             </Select>
           </div>
