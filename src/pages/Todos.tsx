@@ -71,6 +71,12 @@ export default function Todos() {
   const [anomalyOpen, setAnomalyOpen] = useState(false);
   const [anomalyData, setAnomalyData] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
+  
+  // Filter states
+  const [filterPriority, setFilterPriority] = useState<'all' | 'low' | 'medium' | 'high'>('all');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterDateRange, setFilterDateRange] = useState<'all' | 'today' | 'week' | 'overdue'>('all');
+  const [filterTag, setFilterTag] = useState<string>('all');
 
   // Loading states
   const [aiLoading, setAiLoading] = useState(false);
@@ -110,6 +116,74 @@ export default function Todos() {
     } finally {
       setTodosLoading(false);
     }
+  };
+
+  // Get unique categories and tags for filter dropdowns
+  const uniqueCategories = Array.from(new Set(todos.map(t => t.category).filter(Boolean)));
+  const uniqueTags = Array.from(new Set(todos.flatMap(t => t.tags || []).filter(Boolean)));
+
+  // Filter and sort function
+  const filterAndSortTodos = (todosToFilter: Todo[]) => {
+    let filtered = [...todosToFilter];
+
+    // Apply priority filter
+    if (filterPriority !== 'all') {
+      filtered = filtered.filter(t => t.priority === filterPriority);
+    }
+
+    // Apply category filter
+    if (filterCategory !== 'all') {
+      filtered = filtered.filter(t => t.category === filterCategory);
+    }
+
+    // Apply tag filter
+    if (filterTag !== 'all') {
+      filtered = filtered.filter(t => t.tags?.includes(filterTag));
+    }
+
+    // Apply date range filter
+    if (filterDateRange !== 'all') {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+      filtered = filtered.filter(t => {
+        if (!t.due_date) return false;
+        const dueDate = new Date(t.due_date);
+        
+        switch (filterDateRange) {
+          case 'today':
+            return dueDate >= today && dueDate < new Date(today.getTime() + 24 * 60 * 60 * 1000);
+          case 'week':
+            return dueDate >= today && dueDate <= weekFromNow;
+          case 'overdue':
+            return dueDate < now;
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Sort by urgency: high priority first, then by closest deadline
+    filtered.sort((a, b) => {
+      // Priority order: high > medium > low
+      const priorityOrder = { high: 3, medium: 2, low: 1 };
+      const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
+      
+      if (priorityDiff !== 0) return priorityDiff;
+
+      // If same priority, sort by deadline (closest first)
+      if (a.due_date && b.due_date) {
+        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+      }
+      if (a.due_date) return -1;
+      if (b.due_date) return 1;
+
+      // If no deadline, sort by created date (newest first)
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    return filtered;
   };
 
   const applyAIAssist = async () => {
@@ -477,6 +551,57 @@ export default function Todos() {
               </Button>
             </div>
           </div>
+
+          {/* Filter Section */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <Select value={filterPriority} onValueChange={(value: any) => setFilterPriority(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Prioritas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Prioritas</SelectItem>
+                <SelectItem value="high">⚡ Penting Banget</SelectItem>
+                <SelectItem value="medium">📌 Biasa Aja</SelectItem>
+                <SelectItem value="low">💤 Santai</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger>
+                <SelectValue placeholder="Kategori" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Kategori</SelectItem>
+                {uniqueCategories.map((cat) => (
+                  <SelectItem key={cat} value={cat!}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterDateRange} onValueChange={(value: any) => setFilterDateRange(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Deadline" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Deadline</SelectItem>
+                <SelectItem value="overdue">🔴 Telat</SelectItem>
+                <SelectItem value="today">📅 Hari Ini</SelectItem>
+                <SelectItem value="week">📆 Minggu Ini</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterTag} onValueChange={setFilterTag}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tag" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Tag</SelectItem>
+                {uniqueTags.map((tag) => (
+                  <SelectItem key={tag} value={tag}>#{tag}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </header>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -667,15 +792,19 @@ export default function Todos() {
 
           {/* Active Todos Tab */}
           <TabsContent value="active" className="space-y-3">
-            {todos.filter(t => !t.completed).length === 0 ? (
+            {filterAndSortTodos(todos.filter(t => !t.completed)).length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
                   <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Belum ada tugas nih. Yuk bikin satu, jangan mager!</p>
+                  <p className="text-muted-foreground">
+                    {todos.filter(t => !t.completed).length === 0 
+                      ? "Belum ada tugas nih. Yuk bikin satu, jangan mager!"
+                      : "Gak ada tugas yang sesuai filter. Coba ubah filter-nya!"}
+                  </p>
                 </CardContent>
               </Card>
             ) : (
-              todos.filter(t => !t.completed).map((todo) => (
+              filterAndSortTodos(todos.filter(t => !t.completed)).map((todo) => (
                 <Card key={todo.id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-4">
@@ -766,15 +895,19 @@ export default function Todos() {
 
           {/* Completed Todos Tab */}
           <TabsContent value="completed" className="space-y-3">
-            {todos.filter(t => t.completed).length === 0 ? (
+            {filterAndSortTodos(todos.filter(t => t.completed)).length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
                   <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Belum ada tugas yang selesai. Ayo semangat!</p>
+                  <p className="text-muted-foreground">
+                    {todos.filter(t => t.completed).length === 0
+                      ? "Belum ada tugas yang selesai. Ayo semangat!"
+                      : "Gak ada tugas selesai yang sesuai filter. Coba ubah filter-nya!"}
+                  </p>
                 </CardContent>
               </Card>
             ) : (
-              todos.filter(t => t.completed).map((todo) => (
+              filterAndSortTodos(todos.filter(t => t.completed)).map((todo) => (
                 <Card key={todo.id} className="hover:shadow-md transition-shadow bg-secondary/20">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-4">
