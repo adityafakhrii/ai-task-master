@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, LogOut, Trash2, Edit, CheckCircle2, User, Loader2, Calendar, Clock, ArrowUpDown } from 'lucide-react';
+import { Plus, LogOut, Trash2, Edit, CheckCircle2, User, Loader2, Calendar, Clock, ArrowUpDown, Undo2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -595,7 +595,7 @@ export default function Todos() {
           <div className="space-y-2">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <Select value={filterPriority} onValueChange={(value: any) => setFilterPriority(value)}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Filter berdasarkan prioritas">
                   <SelectValue placeholder="Prioritas" />
                 </SelectTrigger>
                 <SelectContent>
@@ -607,7 +607,7 @@ export default function Todos() {
               </Select>
 
               <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Filter berdasarkan kategori">
                   <SelectValue placeholder="Kategori" />
                 </SelectTrigger>
                 <SelectContent>
@@ -619,7 +619,7 @@ export default function Todos() {
               </Select>
 
               <Select value={filterDateRange} onValueChange={(value: any) => setFilterDateRange(value)}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Filter berdasarkan deadline">
                   <SelectValue placeholder="Deadline" />
                 </SelectTrigger>
                 <SelectContent>
@@ -631,7 +631,7 @@ export default function Todos() {
               </Select>
 
               <Select value={filterTag} onValueChange={setFilterTag}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Filter berdasarkan tag">
                   <SelectValue placeholder="Tag" />
                 </SelectTrigger>
                 <SelectContent>
@@ -644,9 +644,9 @@ export default function Todos() {
             </div>
 
             {/* Sort Section */}
-            <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-              <SelectTrigger className="w-full sm:w-64">
-                <ArrowUpDown className="h-4 w-4 mr-2" />
+          <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+              <SelectTrigger className="w-full sm:w-64" aria-label="Urutkan tugas berdasarkan">
+                <ArrowUpDown className="h-4 w-4 mr-2" aria-hidden="true" />
                 <SelectValue placeholder="Urutkan" />
               </SelectTrigger>
               <SelectContent>
@@ -863,8 +863,8 @@ export default function Todos() {
               filterAndSortTodos(todos.filter(t => !t.completed)).map((todo) => (
                 <Card key={todo.id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3 flex-1">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-start gap-3">
                         {completeLoading[todo.id] ? (
                           <div className="mt-1 h-4 w-4 flex items-center justify-center">
                             <Loader2 className="h-3 w-3 animate-spin text-primary" />
@@ -876,70 +876,83 @@ export default function Todos() {
                             className="mt-1"
                             aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
                           />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg">
+                            {todo.title}
+                          </CardTitle>
+                          {todo.description && (
+                            <CardDescription className="mt-1">{todo.description}</CardDescription>
                           )}
-                          <div className="flex-1">
-                            <CardTitle className="text-lg">
-                              {todo.title}
-                            </CardTitle>
-                            {todo.description && (
-                              <CardDescription className="mt-1">{todo.description}</CardDescription>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            <Badge variant="outline" className={priorityColors[todo.priority]}>
+                              {todo.priority}
+                            </Badge>
+                            {todo.category && (
+                              <Badge variant="outline">{todo.category}</Badge>
                             )}
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              <Badge variant="outline" className={priorityColors[todo.priority]}>
-                                {todo.priority}
+                            {todo.due_date && (
+                              <Badge variant="outline" className="gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
                               </Badge>
-                              {todo.category && (
-                                <Badge variant="outline">{todo.category}</Badge>
-                              )}
-                              {todo.due_date && (
-                                <Badge variant="outline" className="gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
-                                </Badge>
-                              )}
-                              {todo.estimated_duration_minutes && (
-                                <Badge variant="outline" className="gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {todo.estimated_duration_minutes}m
-                                </Badge>
-                              )}
-                            </div>
-                            {todo.tags && todo.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {todo.tags.slice(0, 3).map((tag, idx) => (
-                                  <span key={idx} className="text-xs text-muted-foreground">#{tag}</span>
-                                ))}
-                              </div>
+                            )}
+                            {todo.estimated_duration_minutes && (
+                              <Badge variant="outline" className="gap-1">
+                                <Clock className="h-3 w-3" />
+                                {todo.estimated_duration_minutes}m
+                              </Badge>
                             )}
                           </div>
+                          {todo.tags && todo.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {todo.tags.slice(0, 3).map((tag, idx) => (
+                                <span key={idx} className="text-xs text-muted-foreground">#{tag}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 pt-2 border-t">
                         <Button
                           onClick={() => openEditDialog(todo)}
-                          size="icon"
+                          size="sm"
                           variant="ghost"
+                          className="flex-1"
                           aria-label={`Edit tugas ${todo.title}`}
                         >
-                          <Edit className="h-4 w-4" aria-hidden="true" />
+                          <Edit className="h-4 w-4 mr-1" aria-hidden="true" />
+                          <span className="text-xs">Edit</span>
                         </Button>
                         <Button
                           onClick={() => rollbackTodo(todo)}
-                          size="icon"
+                          size="sm"
                           variant="ghost"
-                          aria-label={`Rollback tugas ${todo.title}`}
+                          className="flex-1"
+                          aria-label={`Kembali ke versi sebelumnya dari tugas ${todo.title}`}
                           loading={rollbackLoading[todo.id]}
                         >
-                          {!rollbackLoading[todo.id] && <span aria-hidden="true">↩</span>}
+                          {!rollbackLoading[todo.id] && (
+                            <>
+                              <Undo2 className="h-4 w-4 mr-1" aria-hidden="true" />
+                              <span className="text-xs">Versi</span>
+                            </>
+                          )}
                         </Button>
                         <Button
                           onClick={() => deleteTodo(todo.id)}
-                          size="icon"
+                          size="sm"
                           variant="ghost"
-                          className="text-destructive hover:text-destructive"
+                          className="flex-1 text-destructive hover:text-destructive"
                           aria-label={`Hapus tugas ${todo.title}`}
                           loading={deleteLoading[todo.id]}
                         >
-                          {!deleteLoading[todo.id] && <Trash2 className="h-4 w-4" aria-hidden="true" />}
+                          {!deleteLoading[todo.id] && (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-1" aria-hidden="true" />
+                              <span className="text-xs">Hapus</span>
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>
@@ -966,8 +979,8 @@ export default function Todos() {
               filterAndSortTodos(todos.filter(t => t.completed)).map((todo) => (
                 <Card key={todo.id} className="hover:shadow-md transition-shadow bg-secondary/20">
                   <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3 flex-1">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-start gap-3">
                         {completeLoading[todo.id] ? (
                           <div className="mt-1 h-4 w-4 flex items-center justify-center">
                             <Loader2 className="h-3 w-3 animate-spin text-primary" />
@@ -979,53 +992,58 @@ export default function Todos() {
                             className="mt-1"
                             aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
                           />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg line-through text-muted-foreground">
+                            {todo.title}
+                          </CardTitle>
+                          {todo.description && (
+                            <CardDescription className="mt-1">{todo.description}</CardDescription>
                           )}
-                          <div className="flex-1">
-                            <CardTitle className="text-lg line-through text-muted-foreground">
-                              {todo.title}
-                            </CardTitle>
-                            {todo.description && (
-                              <CardDescription className="mt-1">{todo.description}</CardDescription>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            <Badge variant="outline" className={priorityColors[todo.priority]}>
+                              {todo.priority}
+                            </Badge>
+                            {todo.category && (
+                              <Badge variant="outline">{todo.category}</Badge>
                             )}
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              <Badge variant="outline" className={priorityColors[todo.priority]}>
-                                {todo.priority}
+                            {todo.due_date && (
+                              <Badge variant="outline" className="gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
                               </Badge>
-                              {todo.category && (
-                                <Badge variant="outline">{todo.category}</Badge>
-                              )}
-                              {todo.due_date && (
-                                <Badge variant="outline" className="gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
-                                </Badge>
-                              )}
-                              {todo.estimated_duration_minutes && (
-                                <Badge variant="outline" className="gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {todo.estimated_duration_minutes}m
-                                </Badge>
-                              )}
-                            </div>
-                            {todo.tags && todo.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {todo.tags.slice(0, 3).map((tag, idx) => (
-                                  <span key={idx} className="text-xs text-muted-foreground">#{tag}</span>
-                                ))}
-                              </div>
+                            )}
+                            {todo.estimated_duration_minutes && (
+                              <Badge variant="outline" className="gap-1">
+                                <Clock className="h-3 w-3" />
+                                {todo.estimated_duration_minutes}m
+                              </Badge>
                             )}
                           </div>
+                          {todo.tags && todo.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {todo.tags.slice(0, 3).map((tag, idx) => (
+                                <span key={idx} className="text-xs text-muted-foreground">#{tag}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex justify-end pt-2 border-t">
                         <Button
                           onClick={() => deleteTodo(todo.id)}
-                          size="icon"
+                          size="sm"
                           variant="ghost"
                           className="text-destructive hover:text-destructive"
                           aria-label={`Hapus tugas ${todo.title}`}
                           loading={deleteLoading[todo.id]}
                         >
-                          {!deleteLoading[todo.id] && <Trash2 className="h-4 w-4" aria-hidden="true" />}
+                          {!deleteLoading[todo.id] && (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-1" aria-hidden="true" />
+                              <span className="text-xs">Hapus</span>
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>
