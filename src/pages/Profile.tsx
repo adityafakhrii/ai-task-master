@@ -192,7 +192,7 @@ export default function Profile() {
             if (profileError) throw profileError;
 
             // Delete user account
-            const { error: deleteError } = await supabase.rpc('delete_user');
+            const { error: deleteError } = await supabase.rpc('delete_user' as any);
             
             if (deleteError) {
                 // If RPC doesn't exist, user needs to contact support
