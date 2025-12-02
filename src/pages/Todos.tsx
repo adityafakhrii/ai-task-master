@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, LogOut, Trash2, Edit, CheckCircle2, User, Loader2, Calendar, Clock } from 'lucide-react';
+import { Plus, LogOut, Trash2, Edit, CheckCircle2, User, Loader2, Calendar, Clock, ArrowUpDown, Undo2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -71,6 +71,15 @@ export default function Todos() {
   const [anomalyOpen, setAnomalyOpen] = useState(false);
   const [anomalyData, setAnomalyData] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
+  
+  // Filter states
+  const [filterPriority, setFilterPriority] = useState<'all' | 'low' | 'medium' | 'high'>('all');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterDateRange, setFilterDateRange] = useState<'all' | 'today' | 'week' | 'overdue'>('all');
+  const [filterTag, setFilterTag] = useState<string>('all');
+  
+  // Sort state
+  const [sortBy, setSortBy] = useState<'urgency' | 'priority' | 'due_date' | 'created_at' | 'title'>('urgency');
 
   // Loading states
   const [aiLoading, setAiLoading] = useState(false);
@@ -110,6 +119,97 @@ export default function Todos() {
     } finally {
       setTodosLoading(false);
     }
+  };
+
+  // Get unique categories and tags for filter dropdowns
+  const uniqueCategories = Array.from(new Set(todos.map(t => t.category).filter(Boolean)));
+  const uniqueTags = Array.from(new Set(todos.flatMap(t => t.tags || []).filter(Boolean)));
+
+  // Filter and sort function
+  const filterAndSortTodos = (todosToFilter: Todo[]) => {
+    let filtered = [...todosToFilter];
+
+    // Apply priority filter
+    if (filterPriority !== 'all') {
+      filtered = filtered.filter(t => t.priority === filterPriority);
+    }
+
+    // Apply category filter
+    if (filterCategory !== 'all') {
+      filtered = filtered.filter(t => t.category === filterCategory);
+    }
+
+    // Apply tag filter
+    if (filterTag !== 'all') {
+      filtered = filtered.filter(t => t.tags?.includes(filterTag));
+    }
+
+    // Apply date range filter
+    if (filterDateRange !== 'all') {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+      filtered = filtered.filter(t => {
+        if (!t.due_date) return false;
+        const dueDate = new Date(t.due_date);
+        
+        switch (filterDateRange) {
+          case 'today':
+            return dueDate >= today && dueDate < new Date(today.getTime() + 24 * 60 * 60 * 1000);
+          case 'week':
+            return dueDate >= today && dueDate <= weekFromNow;
+          case 'overdue':
+            return dueDate < now;
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Apply sorting based on sortBy state
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'urgency':
+          // Priority order: high > medium > low
+          const priorityOrder = { high: 3, medium: 2, low: 1 };
+          const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
+          
+          if (priorityDiff !== 0) return priorityDiff;
+
+          // If same priority, sort by deadline (closest first)
+          if (a.due_date && b.due_date) {
+            return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+          }
+          if (a.due_date) return -1;
+          if (b.due_date) return 1;
+
+          // If no deadline, sort by created date (newest first)
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        
+        case 'priority':
+          const pOrder = { high: 3, medium: 2, low: 1 };
+          return pOrder[b.priority] - pOrder[a.priority];
+        
+        case 'due_date':
+          // Tasks with no due date go to the end
+          if (!a.due_date && !b.due_date) return 0;
+          if (!a.due_date) return 1;
+          if (!b.due_date) return -1;
+          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+        
+        case 'created_at':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        
+        case 'title':
+          return a.title.localeCompare(b.title);
+        
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
   };
 
   const applyAIAssist = async () => {
@@ -300,8 +400,21 @@ export default function Todos() {
   const runAnomalyDetection = async () => {
     try {
       setAnomalyLoading(true);
-      const history = Object.values(auditLogRef.current).flat().map(h => ({ id: h.snapshot.id, timestamp: h.timestamp, actor: h.actor, data: h.snapshot }));
-      const res = await detectAnomaly(history);
+      
+      // Prepare task data for anomaly detection - include all todos with their metadata
+      const taskData = todos.map(todo => ({
+        id: todo.id,
+        title: todo.title,
+        priority: todo.priority,
+        category: todo.category,
+        completed: todo.completed,
+        created_at: todo.created_at,
+        updated_at: todo.updated_at,
+        due_date: todo.due_date,
+        estimated_duration_minutes: todo.estimated_duration_minutes
+      }));
+      
+      const res = await detectAnomaly(taskData);
       setAnomalyData(res);
       setAnomalyOpen(true);
     } catch (err: any) {
@@ -476,6 +589,74 @@ export default function Todos() {
                 {anomalyLoading ? 'Analisis...' : 'Anomali'}
               </Button>
             </div>
+          </div>
+
+          {/* Filter Section */}
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <Select value={filterPriority} onValueChange={(value: any) => setFilterPriority(value)}>
+                <SelectTrigger aria-label="Filter berdasarkan prioritas">
+                  <SelectValue placeholder="Prioritas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Prioritas</SelectItem>
+                  <SelectItem value="high">Penting Banget</SelectItem>
+                  <SelectItem value="medium">Biasa Aja</SelectItem>
+                  <SelectItem value="low">Santai</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger aria-label="Filter berdasarkan kategori">
+                  <SelectValue placeholder="Kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Kategori</SelectItem>
+                  {uniqueCategories.map((cat) => (
+                    <SelectItem key={cat} value={cat!}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filterDateRange} onValueChange={(value: any) => setFilterDateRange(value)}>
+                <SelectTrigger aria-label="Filter berdasarkan deadline">
+                  <SelectValue placeholder="Deadline" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Deadline</SelectItem>
+                  <SelectItem value="overdue">Telat</SelectItem>
+                  <SelectItem value="today">Hari Ini</SelectItem>
+                  <SelectItem value="week">Minggu Ini</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filterTag} onValueChange={setFilterTag}>
+                <SelectTrigger aria-label="Filter berdasarkan tag">
+                  <SelectValue placeholder="Tag" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Tag</SelectItem>
+                  {uniqueTags.map((tag) => (
+                    <SelectItem key={tag} value={tag}>#{tag}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Sort Section */}
+          <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+              <SelectTrigger className="w-full sm:w-64" aria-label="Urutkan tugas berdasarkan">
+                <ArrowUpDown className="h-4 w-4 mr-2" aria-hidden="true" />
+                <SelectValue placeholder="Urutkan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="urgency">Urgensi (Default)</SelectItem>
+                <SelectItem value="priority">Prioritas</SelectItem>
+                <SelectItem value="due_date">Tanggal Deadline</SelectItem>
+                <SelectItem value="created_at">Tanggal Dibuat</SelectItem>
+                <SelectItem value="title">Judul (A-Z)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </header>
 
@@ -667,19 +848,23 @@ export default function Todos() {
 
           {/* Active Todos Tab */}
           <TabsContent value="active" className="space-y-3">
-            {todos.filter(t => !t.completed).length === 0 ? (
+            {filterAndSortTodos(todos.filter(t => !t.completed)).length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
                   <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Belum ada tugas nih. Yuk bikin satu, jangan mager!</p>
+                  <p className="text-muted-foreground">
+                    {todos.filter(t => !t.completed).length === 0 
+                      ? "Belum ada tugas nih. Yuk bikin satu, jangan mager!"
+                      : "Gak ada tugas yang sesuai filter. Coba ubah filter-nya!"}
+                  </p>
                 </CardContent>
               </Card>
             ) : (
-              todos.filter(t => !t.completed).map((todo) => (
+              filterAndSortTodos(todos.filter(t => !t.completed)).map((todo) => (
                 <Card key={todo.id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3 flex-1">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-start gap-3">
                         {completeLoading[todo.id] ? (
                           <div className="mt-1 h-4 w-4 flex items-center justify-center">
                             <Loader2 className="h-3 w-3 animate-spin text-primary" />
@@ -691,70 +876,83 @@ export default function Todos() {
                             className="mt-1"
                             aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
                           />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg">
+                            {todo.title}
+                          </CardTitle>
+                          {todo.description && (
+                            <CardDescription className="mt-1">{todo.description}</CardDescription>
                           )}
-                          <div className="flex-1">
-                            <CardTitle className="text-lg">
-                              {todo.title}
-                            </CardTitle>
-                            {todo.description && (
-                              <CardDescription className="mt-1">{todo.description}</CardDescription>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            <Badge variant="outline" className={priorityColors[todo.priority]}>
+                              {todo.priority}
+                            </Badge>
+                            {todo.category && (
+                              <Badge variant="outline">{todo.category}</Badge>
                             )}
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              <Badge variant="outline" className={priorityColors[todo.priority]}>
-                                {todo.priority}
+                            {todo.due_date && (
+                              <Badge variant="outline" className="gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
                               </Badge>
-                              {todo.category && (
-                                <Badge variant="outline">{todo.category}</Badge>
-                              )}
-                              {todo.due_date && (
-                                <Badge variant="outline" className="gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
-                                </Badge>
-                              )}
-                              {todo.estimated_duration_minutes && (
-                                <Badge variant="outline" className="gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {todo.estimated_duration_minutes}m
-                                </Badge>
-                              )}
-                            </div>
-                            {todo.tags && todo.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {todo.tags.slice(0, 3).map((tag, idx) => (
-                                  <span key={idx} className="text-xs text-muted-foreground">#{tag}</span>
-                                ))}
-                              </div>
+                            )}
+                            {todo.estimated_duration_minutes && (
+                              <Badge variant="outline" className="gap-1">
+                                <Clock className="h-3 w-3" />
+                                {todo.estimated_duration_minutes}m
+                              </Badge>
                             )}
                           </div>
+                          {todo.tags && todo.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {todo.tags.slice(0, 3).map((tag, idx) => (
+                                <span key={idx} className="text-xs text-muted-foreground">#{tag}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 pt-2 border-t">
                         <Button
                           onClick={() => openEditDialog(todo)}
-                          size="icon"
+                          size="sm"
                           variant="ghost"
+                          className="flex-1"
                           aria-label={`Edit tugas ${todo.title}`}
                         >
-                          <Edit className="h-4 w-4" aria-hidden="true" />
+                          <Edit className="h-4 w-4 mr-1" aria-hidden="true" />
+                          <span className="text-xs">Edit</span>
                         </Button>
                         <Button
                           onClick={() => rollbackTodo(todo)}
-                          size="icon"
+                          size="sm"
                           variant="ghost"
-                          aria-label={`Rollback tugas ${todo.title}`}
+                          className="flex-1"
+                          aria-label={`Kembali ke versi sebelumnya dari tugas ${todo.title}`}
                           loading={rollbackLoading[todo.id]}
                         >
-                          {!rollbackLoading[todo.id] && <span aria-hidden="true">↩</span>}
+                          {!rollbackLoading[todo.id] && (
+                            <>
+                              <Undo2 className="h-4 w-4 mr-1" aria-hidden="true" />
+                              <span className="text-xs">Versi</span>
+                            </>
+                          )}
                         </Button>
                         <Button
                           onClick={() => deleteTodo(todo.id)}
-                          size="icon"
+                          size="sm"
                           variant="ghost"
-                          className="text-destructive hover:text-destructive"
+                          className="flex-1 text-destructive hover:text-destructive"
                           aria-label={`Hapus tugas ${todo.title}`}
                           loading={deleteLoading[todo.id]}
                         >
-                          {!deleteLoading[todo.id] && <Trash2 className="h-4 w-4" aria-hidden="true" />}
+                          {!deleteLoading[todo.id] && (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-1" aria-hidden="true" />
+                              <span className="text-xs">Hapus</span>
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>
@@ -766,19 +964,23 @@ export default function Todos() {
 
           {/* Completed Todos Tab */}
           <TabsContent value="completed" className="space-y-3">
-            {todos.filter(t => t.completed).length === 0 ? (
+            {filterAndSortTodos(todos.filter(t => t.completed)).length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
                   <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Belum ada tugas yang selesai. Ayo semangat!</p>
+                  <p className="text-muted-foreground">
+                    {todos.filter(t => t.completed).length === 0
+                      ? "Belum ada tugas yang selesai. Ayo semangat!"
+                      : "Gak ada tugas selesai yang sesuai filter. Coba ubah filter-nya!"}
+                  </p>
                 </CardContent>
               </Card>
             ) : (
-              todos.filter(t => t.completed).map((todo) => (
+              filterAndSortTodos(todos.filter(t => t.completed)).map((todo) => (
                 <Card key={todo.id} className="hover:shadow-md transition-shadow bg-secondary/20">
                   <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3 flex-1">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-start gap-3">
                         {completeLoading[todo.id] ? (
                           <div className="mt-1 h-4 w-4 flex items-center justify-center">
                             <Loader2 className="h-3 w-3 animate-spin text-primary" />
@@ -790,53 +992,58 @@ export default function Todos() {
                             className="mt-1"
                             aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
                           />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg line-through text-muted-foreground">
+                            {todo.title}
+                          </CardTitle>
+                          {todo.description && (
+                            <CardDescription className="mt-1">{todo.description}</CardDescription>
                           )}
-                          <div className="flex-1">
-                            <CardTitle className="text-lg line-through text-muted-foreground">
-                              {todo.title}
-                            </CardTitle>
-                            {todo.description && (
-                              <CardDescription className="mt-1">{todo.description}</CardDescription>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            <Badge variant="outline" className={priorityColors[todo.priority]}>
+                              {todo.priority}
+                            </Badge>
+                            {todo.category && (
+                              <Badge variant="outline">{todo.category}</Badge>
                             )}
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              <Badge variant="outline" className={priorityColors[todo.priority]}>
-                                {todo.priority}
+                            {todo.due_date && (
+                              <Badge variant="outline" className="gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
                               </Badge>
-                              {todo.category && (
-                                <Badge variant="outline">{todo.category}</Badge>
-                              )}
-                              {todo.due_date && (
-                                <Badge variant="outline" className="gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
-                                </Badge>
-                              )}
-                              {todo.estimated_duration_minutes && (
-                                <Badge variant="outline" className="gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {todo.estimated_duration_minutes}m
-                                </Badge>
-                              )}
-                            </div>
-                            {todo.tags && todo.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {todo.tags.slice(0, 3).map((tag, idx) => (
-                                  <span key={idx} className="text-xs text-muted-foreground">#{tag}</span>
-                                ))}
-                              </div>
+                            )}
+                            {todo.estimated_duration_minutes && (
+                              <Badge variant="outline" className="gap-1">
+                                <Clock className="h-3 w-3" />
+                                {todo.estimated_duration_minutes}m
+                              </Badge>
                             )}
                           </div>
+                          {todo.tags && todo.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {todo.tags.slice(0, 3).map((tag, idx) => (
+                                <span key={idx} className="text-xs text-muted-foreground">#{tag}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex justify-end pt-2 border-t">
                         <Button
                           onClick={() => deleteTodo(todo.id)}
-                          size="icon"
+                          size="sm"
                           variant="ghost"
                           className="text-destructive hover:text-destructive"
                           aria-label={`Hapus tugas ${todo.title}`}
                           loading={deleteLoading[todo.id]}
                         >
-                          {!deleteLoading[todo.id] && <Trash2 className="h-4 w-4" aria-hidden="true" />}
+                          {!deleteLoading[todo.id] && (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-1" aria-hidden="true" />
+                              <span className="text-xs">Hapus</span>
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>

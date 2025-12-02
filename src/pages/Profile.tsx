@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,7 +7,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, User, Lock } from 'lucide-react';
+import { ArrowLeft, User, Lock, Camera, AlertTriangle, Trash2 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import Footer from '@/components/Footer';
 
 export default function Profile() {
@@ -18,15 +30,38 @@ export default function Profile() {
     const [fullName, setFullName] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [avatarUrl, setAvatarUrl] = useState<string>('');
+    const [uploading, setUploading] = useState(false);
+    const [deleteConfirmText, setDeleteConfirmText] = useState('');
+    const [showFirstDeleteDialog, setShowFirstDeleteDialog] = useState(false);
+    const [showSecondDeleteDialog, setShowSecondDeleteDialog] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (authLoading) return;
         if (user) {
             setFullName(user.user_metadata.full_name || '');
+            loadProfile();
         } else {
             navigate('/auth');
         }
     }, [user, authLoading, navigate]);
+
+    const loadProfile = async () => {
+        if (!user) return;
+        
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('avatar_url')
+            .eq('id', user.id)
+            .single();
+
+        if (!error && data) {
+            setAvatarUrl(data.avatar_url || user.user_metadata.avatar_url || '');
+        } else {
+            setAvatarUrl(user.user_metadata.avatar_url || '');
+        }
+    };
 
     const handleUpdateProfile = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -89,6 +124,106 @@ export default function Profile() {
         }
     };
 
+    const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        try {
+            setUploading(true);
+            
+            if (!event.target.files || event.target.files.length === 0) {
+                return;
+            }
+
+            const file = event.target.files[0];
+            const fileExt = file.name.split('.').pop();
+            const filePath = `${user!.id}/${Math.random()}.${fileExt}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(filePath, file, { upsert: true });
+
+            if (uploadError) throw uploadError;
+
+            const { data } = supabase.storage
+                .from('avatars')
+                .getPublicUrl(filePath);
+
+            const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ avatar_url: data.publicUrl })
+                .eq('id', user!.id);
+
+            if (updateError) throw updateError;
+
+            setAvatarUrl(data.publicUrl);
+            
+            toast({
+                title: "Foto Profil Udah Keupdate",
+                description: "Foto baru lo kece banget!"
+            });
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Waduh Gagal Upload",
+                description: error.message
+            });
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        if (deleteConfirmText !== 'HAPUS AKUN SAYA') {
+            toast({
+                variant: "destructive",
+                title: "Konfirmasi Salah",
+                description: "Ketik 'HAPUS AKUN SAYA' dengan benar buat konfirmasi."
+            });
+            return;
+        }
+
+        try {
+            setLoading(true);
+            
+            // Delete user data from profiles table
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .delete()
+                .eq('id', user!.id);
+
+            if (profileError) throw profileError;
+
+            // Delete user account
+            const { error: deleteError } = await supabase.rpc('delete_user' as any);
+            
+            if (deleteError) {
+                // If RPC doesn't exist, user needs to contact support
+                toast({
+                    variant: "destructive",
+                    title: "Gagal Hapus Akun",
+                    description: "Data profil udah kehapus, tapi akun masih ada. Hubungi support ya!"
+                });
+                return;
+            }
+
+            toast({
+                title: "Akun Berhasil Dihapus",
+                description: "Sampai jumpa lagi, semoga sukses selalu!"
+            });
+
+            await signOut();
+            navigate('/auth');
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Waduh Error",
+                description: error.message
+            });
+        } finally {
+            setLoading(false);
+            setShowSecondDeleteDialog(false);
+            setDeleteConfirmText('');
+        }
+    };
+
     return (
         <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-secondary/20 p-4">
             <div className="flex-1 container mx-auto max-w-2xl pt-8">
@@ -96,8 +231,9 @@ export default function Profile() {
                     variant="ghost"
                     onClick={() => navigate('/todos')}
                     className="mb-6"
+                    aria-label="Kembali ke halaman tugas"
                 >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    <ArrowLeft className="h-4 w-4 mr-2" aria-hidden="true" />
                     Balik ke List Tugas
                 </Button>
 
@@ -107,27 +243,58 @@ export default function Profile() {
                     <Card>
                         <CardHeader>
                             <div className="flex items-center gap-2">
-                                <User className="h-5 w-5 text-primary" />
+                                <User className="h-5 w-5 text-primary" aria-hidden="true" />
                                 <CardTitle>Info Profil Lo</CardTitle>
                             </div>
-                            <CardDescription>Update data diri lo di sini.</CardDescription>
+                            <CardDescription>Update data diri lo di sini, biar makin kece.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={handleUpdateProfile} className="space-y-4">
+                            <form onSubmit={handleUpdateProfile} className="space-y-6">
+                                <div className="flex flex-col items-center gap-4">
+                                    <Avatar className="h-24 w-24">
+                                        <AvatarImage src={avatarUrl} alt={fullName || 'Foto profil'} />
+                                        <AvatarFallback className="text-2xl">
+                                            {fullName ? fullName.charAt(0).toUpperCase() : user?.email?.charAt(0).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex gap-2">
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleAvatarUpload}
+                                            className="hidden"
+                                            aria-label="Upload foto profil"
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            disabled={uploading}
+                                            aria-label="Ubah foto profil"
+                                        >
+                                            <Camera className="h-4 w-4 mr-2" aria-hidden="true" />
+                                            {uploading ? 'Lagi diupload...' : avatarUrl ? 'Ganti Foto' : 'Upload Foto'}
+                                        </Button>
+                                    </div>
+                                </div>
+                                
                                 <div className="space-y-2">
-                                    <Label htmlFor="email">Email</Label>
-                                    <Input id="email" value={user?.email} disabled className="bg-muted" />
+                                    <Label htmlFor="email">Email Lo</Label>
+                                    <Input id="email" value={user?.email} disabled className="bg-muted" aria-label="Email akun (tidak bisa diubah)" />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="fullName">Full Name</Label>
+                                    <Label htmlFor="fullName">Nama Lengkap</Label>
                                     <Input
                                         id="fullName"
                                         value={fullName}
                                         onChange={(e) => setFullName(e.target.value)}
                                         placeholder="Isi nama lengkap lo"
+                                        aria-label="Nama lengkap"
                                     />
                                 </div>
-                                <Button type="submit" loading={loading}>
+                                <Button type="submit" loading={loading} aria-label="Simpan perubahan profil">
                                     {loading ? 'Lagi diupdate...' : 'Update Profil'}
                                 </Button>
                             </form>
@@ -137,7 +304,7 @@ export default function Profile() {
                     <Card>
                         <CardHeader>
                             <div className="flex items-center gap-2">
-                                <Lock className="h-5 w-5 text-primary" />
+                                <Lock className="h-5 w-5 text-primary" aria-hidden="true" />
                                 <CardTitle>Ganti Password</CardTitle>
                             </div>
                             <CardDescription>Pake password yang susah ditebak biar aman sentosa.</CardDescription>
@@ -151,7 +318,8 @@ export default function Profile() {
                                         type="password"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="Isi password baru"
+                                        placeholder="Isi password baru (min. 6 karakter)"
+                                        aria-label="Password baru"
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -162,12 +330,101 @@ export default function Profile() {
                                         value={confirmPassword}
                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                         placeholder="Ulangi password baru"
+                                        aria-label="Konfirmasi password baru"
                                     />
                                 </div>
-                                <Button type="submit" loading={loading} disabled={!password}>
+                                <Button type="submit" loading={loading} disabled={!password} aria-label="Simpan password baru">
                                     {loading ? 'Lagi diganti...' : 'Ganti Password Sekarang'}
                                 </Button>
                             </form>
+                        </CardContent>
+                    </Card>
+
+                    {/* Danger Zone */}
+                    <Card className="border-destructive">
+                        <CardHeader>
+                            <div className="flex items-center gap-2">
+                                <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden="true" />
+                                <CardTitle className="text-destructive">Zona Bahaya</CardTitle>
+                            </div>
+                            <CardDescription>
+                                Aksi di sini bersifat permanen dan gak bisa dibatalin. Mikir mateng-mateng ya!
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <AlertDialog open={showFirstDeleteDialog} onOpenChange={setShowFirstDeleteDialog}>
+                                <AlertDialogTrigger asChild>
+                                    <Button 
+                                        variant="destructive" 
+                                        className="w-full"
+                                        aria-label="Hapus akun permanen"
+                                    >
+                                        <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
+                                        Hapus Akun Permanen
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Yakin Mau Hapus Akun?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Ini keputusan besar nih! Semua data lo bakal hilang selamanya, termasuk:
+                                            <ul className="list-disc list-inside mt-2 space-y-1">
+                                                <li>Semua tugas yang udah lo bikin</li>
+                                                <li>Riwayat aktivitas lo</li>
+                                                <li>Foto profil dan pengaturan</li>
+                                            </ul>
+                                            <p className="mt-4 font-semibold">Aksi ini GAK BISA dibatalin!</p>
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Gak Jadi Deh</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={() => {
+                                                setShowFirstDeleteDialog(false);
+                                                setShowSecondDeleteDialog(true);
+                                            }}
+                                            className="bg-destructive hover:bg-destructive/90"
+                                        >
+                                            Lanjut, Aku Yakin
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+
+                            <AlertDialog open={showSecondDeleteDialog} onOpenChange={setShowSecondDeleteDialog}>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Konfirmasi Terakhir!</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            <p className="mb-4">
+                                                Ketik <strong className="text-destructive">HAPUS AKUN SAYA</strong> di bawah untuk konfirmasi penghapusan akun.
+                                            </p>
+                                            <Input
+                                                value={deleteConfirmText}
+                                                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                                placeholder="Ketik: HAPUS AKUN SAYA"
+                                                className="mb-4"
+                                                aria-label="Ketik HAPUS AKUN SAYA untuk konfirmasi"
+                                            />
+                                            <p className="text-sm text-muted-foreground">
+                                                Ini beneran terakhir lho, setelah ini gak ada jalan balik!
+                                            </p>
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel onClick={() => setDeleteConfirmText('')}>
+                                            Batalin Aja
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={handleDeleteAccount}
+                                            disabled={deleteConfirmText !== 'HAPUS AKUN SAYA' || loading}
+                                            className="bg-destructive hover:bg-destructive/90"
+                                        >
+                                            {loading ? 'Lagi Proses...' : 'Hapus Akun Selamanya'}
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </CardContent>
                     </Card>
                 </div>
