@@ -1,73 +1,81 @@
-# Welcome to your Lovable project
+# CatetYuk - simplify your task
 
-## Project info
+CatetYuk is an intelligent todo list application designed to simplify your task management using the power of AI. Built with modern web technologies, it offers a seamless and smart experience for organizing your daily activities.
 
-**URL**: https://lovable.dev/projects/5a610850-9fc7-4689-8b75-affacc148b31
+## Features
 
-## How can I edit this code?
+- **Smart Task Parsing**: Simply type your task in natural language, and our AI will automatically extract details like dates, times, and categories.
+- **Daily Summaries**: Get a concise summary of your tasks to stay focused on what matters.
+- **Semantic Search**: Find tasks easily using natural language queries, even if you don't remember the exact keywords.
+- **Anomaly Detection**: The AI helps identify unusual patterns or potential issues in your task history.
+- **Modern UI**: A beautiful and responsive interface built with shadcn/ui and Tailwind CSS.
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+This project is built with a robust modern stack:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/5a610850-9fc7-4689-8b75-affacc148b31) and start prompting.
+- **Frontend**: [React](https://react.dev/), [Vite](https://vitejs.dev/), [TypeScript](https://www.typescriptlang.org/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/)
+- **Backend & Database**: [Supabase](https://supabase.com/)
+- **AI Integration**: [Google Generative AI (Gemini)](https://ai.google.dev/)
+- **State Management**: [TanStack Query](https://tanstack.com/query/latest)
 
-Changes made via Lovable will be committed automatically to this repo.
+## Getting Started
 
-**Use your preferred IDE**
+Follow these steps to get the project running on your local machine.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Prerequisites
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
-Follow these steps:
+### Installation
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+1.  **Clone the repository**
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+    ```sh
+    git clone <YOUR_GIT_URL>
+    cd ai-task-master
+    ```
 
-# Step 3: Install the necessary dependencies.
-npm i
+2.  **Install dependencies**
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+    ```sh
+    npm install
+    ```
 
-**Edit a file directly in GitHub**
+3.  **Environment Setup**
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+    Create a `.env` file in the root directory based on `.env.example`:
 
-**Use GitHub Codespaces**
+    ```sh
+    cp .env.example .env
+    ```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+    Fill in your Supabase credentials:
 
-## What technologies are used for this project?
+    ```env
+    VITE_SUPABASE_PROJECT_ID=your_project_id
+    VITE_SUPABASE_PUBLISHABLE_KEY=your_publishable_key
+    VITE_SUPABASE_URL=your_supabase_url
+    ```
 
-This project is built with:
+    *Note: You will also need to set up the Supabase Edge Functions for the AI features to work.*
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+4.  **Start the development server**
 
-## How can I deploy this project?
+    ```sh
+    npm run dev
+    ```
 
-Simply open [Lovable](https://lovable.dev/projects/5a610850-9fc7-4689-8b75-affacc148b31) and click on Share -> Publish.
+    The application will be available at `http://localhost:8080`.
 
-## Can I connect a custom domain to my Lovable project?
+## Scripts
 
-Yes, you can!
+- `npm run dev`: Start the development server.
+- `npm run build`: Build the project for production.
+- `npm run lint`: Run ESLint to check for code quality issues.
+- `npm run preview`: Preview the production build locally.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## License
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+[MIT](LICENSE)
