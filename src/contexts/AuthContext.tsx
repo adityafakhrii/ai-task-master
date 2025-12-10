@@ -47,10 +47,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Handle OAuth errors coming from URL redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get('error');
+    const errorDescription = params.get('error_description');
+
+    // Also check hash for fragment based errors handling
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const hashError = hashParams.get('error');
+    const hashErrorDescription = hashParams.get('error_description');
+
+    if (error || hashError) {
+      toast({
+        variant: "destructive",
+        title: "Login Gagal",
+        description: (errorDescription || hashErrorDescription || "Terjadi kesalahan saat login dengan Google.").replace(/\+/g, ' ')
+      });
+      // Optional: Clear the error from URL to prevent showing it again on refresh
+      // window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
+
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
       const redirectUrl = `${window.location.origin}/`;
-      
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -107,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/todos`
+          redirectTo: window.location.origin
         }
       });
 
