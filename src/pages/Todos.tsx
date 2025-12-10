@@ -587,61 +587,59 @@ export default function Todos() {
           </div>
 
           {/* Filter Section */}
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <Select value={filterPriority} onValueChange={(value: any) => setFilterPriority(value)}>
-                <SelectTrigger aria-label="Filter berdasarkan prioritas">
-                  <SelectValue placeholder="Prioritas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Prioritas</SelectItem>
-                  <SelectItem value="high">Penting Banget</SelectItem>
-                  <SelectItem value="medium">Biasa Aja</SelectItem>
-                  <SelectItem value="low">Santai</SelectItem>
-                </SelectContent>
-              </Select>
+          {/* Filter & Sort Section */}
+          <div className="flex flex-wrap gap-2">
+            <Select value={filterPriority} onValueChange={(value: any) => setFilterPriority(value)}>
+              <SelectTrigger className="flex-1 min-w-[140px]" aria-label="Filter berdasarkan prioritas">
+                <SelectValue placeholder="Prioritas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Prioritas</SelectItem>
+                <SelectItem value="high">Penting Banget</SelectItem>
+                <SelectItem value="medium">Biasa Aja</SelectItem>
+                <SelectItem value="low">Santai</SelectItem>
+              </SelectContent>
+            </Select>
 
-              <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger aria-label="Filter berdasarkan kategori">
-                  <SelectValue placeholder="Kategori" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Kategori</SelectItem>
-                  {uniqueCategories.map((cat) => (
-                    <SelectItem key={cat} value={cat!}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="flex-1 min-w-[140px]" aria-label="Filter berdasarkan kategori">
+                <SelectValue placeholder="Kategori" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Kategori</SelectItem>
+                {uniqueCategories.map((cat) => (
+                  <SelectItem key={cat} value={cat!}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-              <Select value={filterDateRange} onValueChange={(value: any) => setFilterDateRange(value)}>
-                <SelectTrigger aria-label="Filter berdasarkan deadline">
-                  <SelectValue placeholder="Deadline" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Deadline</SelectItem>
-                  <SelectItem value="overdue">Telat</SelectItem>
-                  <SelectItem value="today">Hari Ini</SelectItem>
-                  <SelectItem value="week">Minggu Ini</SelectItem>
-                </SelectContent>
-              </Select>
+            <Select value={filterDateRange} onValueChange={(value: any) => setFilterDateRange(value)}>
+              <SelectTrigger className="flex-1 min-w-[140px]" aria-label="Filter berdasarkan deadline">
+                <SelectValue placeholder="Deadline" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Deadline</SelectItem>
+                <SelectItem value="overdue">Telat</SelectItem>
+                <SelectItem value="today">Hari Ini</SelectItem>
+                <SelectItem value="week">Minggu Ini</SelectItem>
+              </SelectContent>
+            </Select>
 
-              <Select value={filterTag} onValueChange={setFilterTag}>
-                <SelectTrigger aria-label="Filter berdasarkan tag">
-                  <SelectValue placeholder="Tag" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Tag</SelectItem>
-                  {uniqueTags.map((tag) => (
-                    <SelectItem key={tag} value={tag}>#{tag}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={filterTag} onValueChange={setFilterTag}>
+              <SelectTrigger className="flex-1 min-w-[140px]" aria-label="Filter berdasarkan tag">
+                <SelectValue placeholder="Tag" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Tag</SelectItem>
+                {uniqueTags.map((tag) => (
+                  <SelectItem key={tag} value={tag}>#{tag}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-            {/* Sort Section */}
             <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-              <SelectTrigger className="w-full sm:w-64" aria-label="Urutkan tugas berdasarkan">
-                <ArrowUpDown className="h-4 w-4 mr-2" aria-hidden="true" />
+              <SelectTrigger className="flex-1 min-w-[140px] bg-secondary/20 border-primary/20" aria-label="Urutkan tugas berdasarkan">
+                <ArrowUpDown className="h-4 w-4 mr-2 text-primary" aria-hidden="true" />
                 <SelectValue placeholder="Urutkan" />
               </SelectTrigger>
               <SelectContent>
