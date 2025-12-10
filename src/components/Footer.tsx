@@ -11,6 +11,7 @@ export default function Footer() {
           <div className="flex gap-4 text-sm text-muted-foreground">
             <a href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</a>
             <a href="/terms" className="hover:text-primary transition-colors">Terms of Service</a>
+            <a href="/changelog" className="hover:text-primary transition-colors">Updates</a>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Dibuat dengan</span>
