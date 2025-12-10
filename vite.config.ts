@@ -14,6 +14,9 @@ export default defineConfig({
         short_name: 'CatetYuk',
         description: 'CatetYuk - simplify your task',
         theme_color: '#ffffff',
+        start_url: '/',
+        display: 'standalone',
+        background_color: '#ffffff',
         icons: [
           {
             src: 'catetyuk2.png',

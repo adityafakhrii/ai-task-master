@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, ListTodo, Sparkles, Zap, Search, FileText, ScanEye } from 'lucide-react';
 import Footer from '@/components/Footer';
+import { InstallPrompt } from '@/components/InstallPrompt';
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -39,9 +40,14 @@ const Index = () => {
             simplify your task.
           </p>
 
-          <Button onClick={() => navigate('/auth')} size="lg" className="mt-8 text-lg px-8 py-6 shadow-xl hover:shadow-2xl transition-all">
-            Gas Mulai!
-          </Button>
+
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
+            <Button onClick={() => navigate('/auth')} size="lg" className="text-lg px-8 py-6 shadow-xl hover:shadow-2xl transition-all w-full sm:w-auto">
+              Gas Mulai!
+            </Button>
+            <InstallPrompt />
+          </div>
         </section>
 
         {/* Features Grid */}
