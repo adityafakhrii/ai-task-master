@@ -680,36 +680,23 @@ export default function Todos() {
                     placeholder="contoh: besok pagi kirim laporan ke klien"
                     value={nlInput}
                     onChange={(e) => setNlInput(e.target.value)}
-                    className="border-border"
+                    className="border-border focus-visible:ring-0 focus-visible:border-primary/50"
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={applyAIAssist} variant="secondary" type="button" loading={aiLoading}>
-                    {aiLoading ? 'AI lagi mikir...' : 'Parse AI'}
+                  <Button
+                    onClick={applyAIAssist}
+                    variant="secondary"
+                    type="button"
+                    loading={aiLoading}
+                    className="bg-primary/10 hover:bg-primary/20 text-primary transition-all duration-300 transform hover:scale-105"
+                  >
+                    {aiLoading ? 'Lagi mikir...' : 'Gas Analisis AI'}
                   </Button>
-                  {aiHints?.recommendedPriority && (
-                    <Badge variant="outline">Rekomendasi: {aiHints.recommendedPriority}</Badge>
-                  )}
                   {typeof aiHints?.estimatedMinutes === 'number' && (
-                    <Badge variant="outline">Estimasi: {aiHints?.estimatedMinutes}m</Badge>
+                    <Badge variant="outline" className="bg-primary/5 border-primary/20 text-primary">Estimasi: {aiHints?.estimatedMinutes} menit</Badge>
                   )}
                 </div>
-                {aiHints?.suggestions && (
-                  <div className="grid md:grid-cols-3 gap-3 text-sm">
-                    <div>
-                      <Label>Subtasks</Label>
-                      <div className="mt-1 space-y-1">{(aiHints.suggestions.subtasks || []).map((s, i) => (<div key={i} className="text-muted-foreground">• {s}</div>))}</div>
-                    </div>
-                    <div>
-                      <Label>Checklist</Label>
-                      <div className="mt-1 space-y-1">{(aiHints.suggestions.checklist || []).map((s, i) => (<div key={i} className="text-muted-foreground">• {s}</div>))}</div>
-                    </div>
-                    <div>
-                      <Label>Template</Label>
-                      <div className="mt-1 space-y-1">{(aiHints.suggestions.templates || []).map((s, i) => (<div key={i} className="text-muted-foreground">• {s}</div>))}</div>
-                    </div>
-                  </div>
-                )}
               </div>
             </ScrollArea>
             <form onSubmit={handleSubmit} className="space-y-4 pt-4">
