@@ -70,7 +70,7 @@ export default function Todos() {
   const [dailyData, setDailyData] = useState<any | null>(null);
   const [anomalyOpen, setAnomalyOpen] = useState(false);
   const [anomalyData, setAnomalyData] = useState<any | null>(null);
-  const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'overdue'>('active');
 
   // Filter states
   const [filterPriority, setFilterPriority] = useState<'all' | 'low' | 'medium' | 'high'>('all');
@@ -353,11 +353,6 @@ export default function Todos() {
       const data = await dailySummary(todos);
       setDailyData(data);
       setSummaryOpen(true);
-      toast({
-        title: 'Ringkasan harian siap', description: 'Lihat detail di dialog', action: (
-          <ToastAction altText="Buka">Buka</ToastAction>
-        )
-      });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Gagal membuat ringkasan', description: err.message });
     } finally {
@@ -837,9 +832,12 @@ export default function Todos() {
 
         {/* Todo List with Tabs */}
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'active' | 'completed')} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6" aria-label="Filter tugas berdasarkan status">
-            <TabsTrigger value="active" aria-label={`Tugas belum selesai, ${todos.filter(t => !t.completed).length} tugas`}>
-              Belum Beres ({todos.filter(t => !t.completed).length})
+          <TabsList className="grid w-full grid-cols-3 mb-6" aria-label="Filter tugas berdasarkan status">
+            <TabsTrigger value="active" aria-label={`Tugas belum selesai, ${todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length} tugas`}>
+              Belum Beres ({todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length})
+            </TabsTrigger>
+            <TabsTrigger value="overdue" className="data-[state=active]:bg-red-500/10 data-[state=active]:text-red-600" aria-label="Tugas lewat deadline">
+              Lewat Deadline ({todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date()).length})
             </TabsTrigger>
             <TabsTrigger value="completed" aria-label={`Tugas sudah selesai, ${todos.filter(t => t.completed).length} tugas`}>
               Udah Beres ({todos.filter(t => t.completed).length})
@@ -848,19 +846,19 @@ export default function Todos() {
 
           {/* Active Todos Tab */}
           <TabsContent value="active" className="space-y-3">
-            {filterAndSortTodos(todos.filter(t => !t.completed)).length === 0 ? (
+            {filterAndSortTodos(todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date()))).length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
                   <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground">
-                    {todos.filter(t => !t.completed).length === 0
-                      ? "Belum ada tugas nih. Yuk bikin satu, jangan mager!"
+                    {todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length === 0
+                      ? "Tidak ada tugas yang aktif saat ini. Cek tab 'Lewat Deadline' juga ya!"
                       : "Gak ada tugas yang sesuai filter. Coba ubah filter-nya!"}
                   </p>
                 </CardContent>
               </Card>
             ) : (
-              filterAndSortTodos(todos.filter(t => !t.completed)).map((todo) => (
+              filterAndSortTodos(todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date()))).map((todo) => (
                 <Card key={todo.id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
                     <div className="flex flex-col gap-3">
@@ -950,6 +948,92 @@ export default function Todos() {
                           {!deleteLoading[todo.id] && (
                             <>
                               <Trash2 className="h-4 w-4 mr-1" aria-hidden="true" />
+                              <span className="text-xs">Hapus</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+
+          {/* Overdue Todos Tab */}
+          <TabsContent value="overdue" className="space-y-3">
+            {filterAndSortTodos(todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date())).length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">
+                    {todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date()).length === 0
+                      ? "Aman! Gak ada tugas yang lewat deadline."
+                      : "Gak ada tugas telat yang sesuai filter."}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              filterAndSortTodos(todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date())).map((todo) => (
+                <Card key={todo.id} className="hover:shadow-md transition-shadow border-red-200 bg-red-50/10">
+                  <CardHeader className="pb-3">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-start gap-3">
+                        {completeLoading[todo.id] ? (
+                          <div className="mt-1 h-4 w-4 flex items-center justify-center">
+                            <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                          </div>
+                        ) : (
+                          <Checkbox
+                            checked={todo.completed}
+                            onCheckedChange={() => toggleComplete(todo)}
+                            className="mt-1"
+                            aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg text-red-600">
+                            {todo.title}
+                          </CardTitle>
+                          {todo.description && (
+                            <CardDescription className="mt-1">{todo.description}</CardDescription>
+                          )}
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            <Badge variant="outline" className={priorityColors[todo.priority]}>
+                              {todo.priority}
+                            </Badge>
+                            {todo.category && (
+                              <Badge variant="outline">{todo.category}</Badge>
+                            )}
+                            {todo.due_date && (
+                              <Badge variant="destructive" className="gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 pt-2 border-t">
+                        <Button
+                          onClick={() => openEditDialog(todo)}
+                          size="sm"
+                          variant="ghost"
+                          className="flex-1"
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          <span className="text-xs">Edit</span>
+                        </Button>
+                        <Button
+                          onClick={() => deleteTodo(todo.id)}
+                          size="sm"
+                          variant="ghost"
+                          className="flex-1 text-destructive hover:text-destructive"
+                          loading={deleteLoading[todo.id]}
+                        >
+                          {!deleteLoading[todo.id] && (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-1" />
                               <span className="text-xs">Hapus</span>
                             </>
                           )}
@@ -1056,27 +1140,29 @@ export default function Todos() {
       </div>
       {summaryOpen && dailyData && (
         <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
-          <DialogContent>
+          <DialogContent className="max-h-[80vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>Ringkasan Harian</DialogTitle>
               <DialogDescription>Rangkuman tugas dan rekomendasi</DialogDescription>
             </DialogHeader>
-            <div className="space-y-3">
-              <div>
-                <Label>Urgent</Label>
-                <div className="mt-2 space-y-1">{(dailyData.urgent || []).map((u: any, i: number) => (<div key={i} className="text-red-500">• {u.title}</div>))}</div>
-              </div>
-              <div>
-                <Label>Hari Ini</Label>
-                <div className="mt-2 space-y-1">{(dailyData.today_list || []).map((t: any, i: number) => (<div key={i}>• {t.title}</div>))}</div>
-              </div>
-              <div>
-                <Label>Progres</Label>
-                <div className="mt-1 text-muted-foreground">{dailyData.progress_summary}</div>
-              </div>
-              <div>
-                <Label>Rekomendasi</Label>
-                <div className="mt-2 space-y-1">{(dailyData.recommendations || []).map((r: any, i: number) => (<div key={i}>• {r}</div>))}</div>
+            <div className="flex-1 overflow-y-auto p-4 border rounded-md">
+              <div className="space-y-3 pb-4">
+                <div>
+                  <Label>Urgent</Label>
+                  <div className="mt-2 space-y-1">{(dailyData.urgent || []).map((u: any, i: number) => (<div key={i} className="text-red-500">• {u.title}</div>))}</div>
+                </div>
+                <div>
+                  <Label>Hari Ini</Label>
+                  <div className="mt-2 space-y-1">{(dailyData.today_list || []).map((t: any, i: number) => (<div key={i}>• {t.title}</div>))}</div>
+                </div>
+                <div>
+                  <Label>Progres</Label>
+                  <div className="mt-1 text-muted-foreground">{dailyData.progress_summary}</div>
+                </div>
+                <div>
+                  <Label>Rekomendasi</Label>
+                  <div className="mt-2 space-y-1">{(dailyData.recommendations || []).map((r: any, i: number) => (<div key={i}>• {r}</div>))}</div>
+                </div>
               </div>
             </div>
           </DialogContent>
@@ -1084,30 +1170,32 @@ export default function Todos() {
       )}
       {anomalyOpen && anomalyData && (
         <Dialog open={anomalyOpen} onOpenChange={setAnomalyOpen}>
-          <DialogContent>
+          <DialogContent className="max-h-[80vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>Insight Perilaku Tugas</DialogTitle>
               <DialogDescription>Analisis pola dan anomali dari aktivitas tugas</DialogDescription>
             </DialogHeader>
-            <div className="space-y-3">
-              <div>
-                <Label>Insights</Label>
-                <div className="mt-2 space-y-1">
-                  {(anomalyData.insights || []).map((insight: string, i: number) => (
-                    <div key={i} className="text-sm">• {insight}</div>
-                  ))}
-                </div>
-              </div>
-              {anomalyData.recommendations && anomalyData.recommendations.length > 0 && (
+            <div className="flex-1 overflow-y-auto p-4 border rounded-md">
+              <div className="space-y-3 pb-4">
                 <div>
-                  <Label>Rekomendasi</Label>
+                  <Label>Insights</Label>
                   <div className="mt-2 space-y-1">
-                    {anomalyData.recommendations.map((rec: string, i: number) => (
-                      <div key={i} className="text-sm text-muted-foreground">• {rec}</div>
+                    {(anomalyData.insights || []).map((insight: string, i: number) => (
+                      <div key={i} className="text-sm">• {insight}</div>
                     ))}
                   </div>
                 </div>
-              )}
+                {anomalyData.recommendations && anomalyData.recommendations.length > 0 && (
+                  <div>
+                    <Label>Rekomendasi</Label>
+                    <div className="mt-2 space-y-1">
+                      {anomalyData.recommendations.map((rec: string, i: number) => (
+                        <div key={i} className="text-sm text-muted-foreground">• {rec}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </DialogContent>
         </Dialog>
