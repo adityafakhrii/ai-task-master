@@ -10,15 +10,15 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, User, Lock, Camera, AlertTriangle, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import Footer from '@/components/Footer';
 
@@ -29,6 +29,7 @@ export default function Profile() {
     const [loading, setLoading] = useState(false);
     const [fullName, setFullName] = useState('');
     const [password, setPassword] = useState('');
+    const [oldPassword, setOldPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [avatarUrl, setAvatarUrl] = useState<string>('');
     const [uploading, setUploading] = useState(false);
@@ -49,7 +50,7 @@ export default function Profile() {
 
     const loadProfile = async () => {
         if (!user) return;
-        
+
         const { data, error } = await supabase
             .from('profiles')
             .select('avatar_url')
@@ -90,6 +91,9 @@ export default function Profile() {
 
     const handleUpdatePassword = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const isGoogleAuth = user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google');
+
         if (password !== confirmPassword) {
             toast({
                 variant: "destructive",
@@ -101,6 +105,22 @@ export default function Profile() {
 
         setLoading(true);
         try {
+            // For non-Google users, verify old password first
+            if (!isGoogleAuth) {
+                if (!oldPassword) {
+                    throw new Error("Password lama wajib diisi ya!");
+                }
+
+                const { error: signInError } = await supabase.auth.signInWithPassword({
+                    email: user?.email || '',
+                    password: oldPassword
+                });
+
+                if (signInError) {
+                    throw new Error("Password lama salah. Cobainget-inget lagi.");
+                }
+            }
+
             const { error } = await supabase.auth.updateUser({
                 password: password
             });
@@ -108,15 +128,16 @@ export default function Profile() {
             if (error) throw error;
 
             toast({
-                title: "Password Udah Ganti",
-                description: "Password baru lo udah aktif."
+                title: isGoogleAuth ? "Password Berhasil Dibuat" : "Password Udah Ganti",
+                description: "Password baru lo udah aktif dan aman."
             });
             setPassword('');
             setConfirmPassword('');
+            setOldPassword('');
         } catch (error: any) {
             toast({
                 variant: "destructive",
-                title: "Waduh Error",
+                title: "Gagal Update Password",
                 description: error.message
             });
         } finally {
@@ -127,7 +148,7 @@ export default function Profile() {
     const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         try {
             setUploading(true);
-            
+
             if (!event.target.files || event.target.files.length === 0) {
                 return;
             }
@@ -154,7 +175,7 @@ export default function Profile() {
             if (updateError) throw updateError;
 
             setAvatarUrl(data.publicUrl);
-            
+
             toast({
                 title: "Foto Profil Udah Keupdate",
                 description: "Foto baru lo kece banget!"
@@ -182,7 +203,7 @@ export default function Profile() {
 
         try {
             setLoading(true);
-            
+
             // Delete user data from profiles table
             const { error: profileError } = await supabase
                 .from('profiles')
@@ -193,7 +214,7 @@ export default function Profile() {
 
             // Delete user account
             const { error: deleteError } = await supabase.rpc('delete_user' as any);
-            
+
             if (deleteError) {
                 // If RPC doesn't exist, user needs to contact support
                 toast({
@@ -279,7 +300,7 @@ export default function Profile() {
                                         </Button>
                                     </div>
                                 </div>
-                                
+
                                 <div className="space-y-2">
                                     <Label htmlFor="email">Email Lo</Label>
                                     <Input id="email" value={user?.email} disabled className="bg-muted" aria-label="Email akun (tidak bisa diubah)" />
@@ -305,12 +326,29 @@ export default function Profile() {
                         <CardHeader>
                             <div className="flex items-center gap-2">
                                 <Lock className="h-5 w-5 text-primary" aria-hidden="true" />
-                                <CardTitle>Ganti Password</CardTitle>
+                                <CardTitle>{(user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google')) ? 'Atur Password Login' : 'Ganti Password'}</CardTitle>
                             </div>
-                            <CardDescription>Pake password yang susah ditebak biar aman sentosa.</CardDescription>
+                            <CardDescription>
+                                {(user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google'))
+                                    ? 'Tambahin password biar bisa login pake email juga.'
+                                    : 'Ganti password secara berkala biar akun lo tetep aman.'}
+                            </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={handleUpdatePassword} className="space-y-4">
+                                {!(user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google')) && (
+                                    <div className="space-y-2">
+                                        <Label htmlFor="oldPassword">Password Lama</Label>
+                                        <Input
+                                            id="oldPassword"
+                                            type="password"
+                                            value={oldPassword}
+                                            onChange={(e) => setOldPassword(e.target.value)}
+                                            placeholder="Masukin password lama dulu"
+                                            required
+                                        />
+                                    </div>
+                                )}
                                 <div className="space-y-2">
                                     <Label htmlFor="password">Password Baru</Label>
                                     <Input
@@ -333,8 +371,8 @@ export default function Profile() {
                                         aria-label="Konfirmasi password baru"
                                     />
                                 </div>
-                                <Button type="submit" loading={loading} disabled={!password} aria-label="Simpan password baru">
-                                    {loading ? 'Lagi diganti...' : 'Ganti Password Sekarang'}
+                                <Button type="submit" loading={loading} disabled={!password || (!oldPassword && !(user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google')))}>
+                                    {loading ? 'Lagi proses...' : (user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google')) ? 'Buat Password Baru' : 'Ganti Password Sekarang'}
                                 </Button>
                             </form>
                         </CardContent>
@@ -354,8 +392,8 @@ export default function Profile() {
                         <CardContent>
                             <AlertDialog open={showFirstDeleteDialog} onOpenChange={setShowFirstDeleteDialog}>
                                 <AlertDialogTrigger asChild>
-                                    <Button 
-                                        variant="destructive" 
+                                    <Button
+                                        variant="destructive"
                                         className="w-full"
                                         aria-label="Hapus akun permanen"
                                     >
