@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, LogOut, Trash2, Edit, CheckCircle2, User, Loader2, Calendar, Clock, ArrowUpDown, Undo2 } from 'lucide-react';
+import { Plus, LogOut, Trash2, Edit, User, Loader2, Calendar, Clock, ArrowUpDown, Undo2, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -71,13 +71,13 @@ export default function Todos() {
   const [anomalyOpen, setAnomalyOpen] = useState(false);
   const [anomalyData, setAnomalyData] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
-  
+
   // Filter states
   const [filterPriority, setFilterPriority] = useState<'all' | 'low' | 'medium' | 'high'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterDateRange, setFilterDateRange] = useState<'all' | 'today' | 'week' | 'overdue'>('all');
   const [filterTag, setFilterTag] = useState<string>('all');
-  
+
   // Sort state
   const [sortBy, setSortBy] = useState<'urgency' | 'priority' | 'due_date' | 'created_at' | 'title'>('urgency');
 
@@ -153,7 +153,7 @@ export default function Todos() {
       filtered = filtered.filter(t => {
         if (!t.due_date) return false;
         const dueDate = new Date(t.due_date);
-        
+
         switch (filterDateRange) {
           case 'today':
             return dueDate >= today && dueDate < new Date(today.getTime() + 24 * 60 * 60 * 1000);
@@ -174,7 +174,7 @@ export default function Todos() {
           // Priority order: high > medium > low
           const priorityOrder = { high: 3, medium: 2, low: 1 };
           const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
-          
+
           if (priorityDiff !== 0) return priorityDiff;
 
           // If same priority, sort by deadline (closest first)
@@ -186,24 +186,24 @@ export default function Todos() {
 
           // If no deadline, sort by created date (newest first)
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        
+
         case 'priority':
           const pOrder = { high: 3, medium: 2, low: 1 };
           return pOrder[b.priority] - pOrder[a.priority];
-        
+
         case 'due_date':
           // Tasks with no due date go to the end
           if (!a.due_date && !b.due_date) return 0;
           if (!a.due_date) return 1;
           if (!b.due_date) return -1;
           return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-        
+
         case 'created_at':
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        
+
         case 'title':
           return a.title.localeCompare(b.title);
-        
+
         default:
           return 0;
       }
@@ -217,7 +217,7 @@ export default function Todos() {
     try {
       setAiLoading(true);
       const result = await parseTask(nlInput.trim());
-      
+
       // Parse due_date if available
       let parsedDueDate: Date | null = null;
       if (result.due_date && typeof result.due_date === 'string') {
@@ -233,7 +233,7 @@ export default function Todos() {
 
       // Auto-populate description with AI summary
       const aiGeneratedDescription = result.summary || formData.description;
-      
+
       setFormData({
         title: result.title || formData.title,
         description: aiGeneratedDescription,
@@ -400,7 +400,7 @@ export default function Todos() {
   const runAnomalyDetection = async () => {
     try {
       setAnomalyLoading(true);
-      
+
       // Prepare task data for anomaly detection - include all todos with their metadata
       const taskData = todos.map(todo => ({
         id: todo.id,
@@ -413,7 +413,7 @@ export default function Todos() {
         due_date: todo.due_date,
         estimated_duration_minutes: todo.estimated_duration_minutes
       }));
-      
+
       const res = await detectAnomaly(taskData);
       setAnomalyData(res);
       setAnomalyOpen(true);
@@ -517,10 +517,10 @@ export default function Todos() {
           <div className="flex items-center justify-between gap-4">
             {/* Branding */}
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-7 w-7 text-primary flex-shrink-0" aria-hidden="true" />
+              <img src="/CatetYuk3.png" alt="CatetYuk Logo" className="h-14 w-14 flex-shrink-0" aria-hidden="true" />
               <div className="min-w-0">
                 <h1 className="text-2xl sm:text-3xl font-bold leading-tight">CatetYuk</h1>
-                <p className="text-xs text-muted-foreground hidden sm:block">Atur tugas dengan AI</p>
+                <p className="text-xs text-muted-foreground hidden sm:block">simplify your task</p>
               </div>
             </div>
 
@@ -644,7 +644,7 @@ export default function Todos() {
             </div>
 
             {/* Sort Section */}
-          <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+            <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
               <SelectTrigger className="w-full sm:w-64" aria-label="Urutkan tugas berdasarkan">
                 <ArrowUpDown className="h-4 w-4 mr-2" aria-hidden="true" />
                 <SelectValue placeholder="Urutkan" />
@@ -681,42 +681,42 @@ export default function Todos() {
             </DialogHeader>
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-3 pb-4">
-              <div className="space-y-2">
-                <Label>Deskripsi Bahasa Alami</Label>
-                <Input 
-                  placeholder="contoh: besok pagi kirim laporan ke klien" 
-                  value={nlInput} 
-                  onChange={(e) => setNlInput(e.target.value)} 
-                  className="border-border"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={applyAIAssist} variant="secondary" type="button" loading={aiLoading}>
-                  {aiLoading ? 'AI lagi mikir...' : 'Parse AI'}
-                </Button>
-                {aiHints?.recommendedPriority && (
-                  <Badge variant="outline">Rekomendasi: {aiHints.recommendedPriority}</Badge>
-                )}
-                {typeof aiHints?.estimatedMinutes === 'number' && (
-                  <Badge variant="outline">Estimasi: {aiHints?.estimatedMinutes}m</Badge>
-                )}
-              </div>
-              {aiHints?.suggestions && (
-                <div className="grid md:grid-cols-3 gap-3 text-sm">
-                  <div>
-                    <Label>Subtasks</Label>
-                    <div className="mt-1 space-y-1">{(aiHints.suggestions.subtasks || []).map((s, i) => (<div key={i} className="text-muted-foreground">• {s}</div>))}</div>
-                  </div>
-                  <div>
-                    <Label>Checklist</Label>
-                    <div className="mt-1 space-y-1">{(aiHints.suggestions.checklist || []).map((s, i) => (<div key={i} className="text-muted-foreground">• {s}</div>))}</div>
-                  </div>
-                  <div>
-                    <Label>Template</Label>
-                    <div className="mt-1 space-y-1">{(aiHints.suggestions.templates || []).map((s, i) => (<div key={i} className="text-muted-foreground">• {s}</div>))}</div>
-                  </div>
+                <div className="space-y-2">
+                  <Label>Deskripsi Bahasa Alami</Label>
+                  <Input
+                    placeholder="contoh: besok pagi kirim laporan ke klien"
+                    value={nlInput}
+                    onChange={(e) => setNlInput(e.target.value)}
+                    className="border-border"
+                  />
                 </div>
-              )}
+                <div className="flex gap-2">
+                  <Button onClick={applyAIAssist} variant="secondary" type="button" loading={aiLoading}>
+                    {aiLoading ? 'AI lagi mikir...' : 'Parse AI'}
+                  </Button>
+                  {aiHints?.recommendedPriority && (
+                    <Badge variant="outline">Rekomendasi: {aiHints.recommendedPriority}</Badge>
+                  )}
+                  {typeof aiHints?.estimatedMinutes === 'number' && (
+                    <Badge variant="outline">Estimasi: {aiHints?.estimatedMinutes}m</Badge>
+                  )}
+                </div>
+                {aiHints?.suggestions && (
+                  <div className="grid md:grid-cols-3 gap-3 text-sm">
+                    <div>
+                      <Label>Subtasks</Label>
+                      <div className="mt-1 space-y-1">{(aiHints.suggestions.subtasks || []).map((s, i) => (<div key={i} className="text-muted-foreground">• {s}</div>))}</div>
+                    </div>
+                    <div>
+                      <Label>Checklist</Label>
+                      <div className="mt-1 space-y-1">{(aiHints.suggestions.checklist || []).map((s, i) => (<div key={i} className="text-muted-foreground">• {s}</div>))}</div>
+                    </div>
+                    <div>
+                      <Label>Template</Label>
+                      <div className="mt-1 space-y-1">{(aiHints.suggestions.templates || []).map((s, i) => (<div key={i} className="text-muted-foreground">• {s}</div>))}</div>
+                    </div>
+                  </div>
+                )}
               </div>
             </ScrollArea>
             <form onSubmit={handleSubmit} className="space-y-4 pt-4">
@@ -853,7 +853,7 @@ export default function Todos() {
                 <CardContent className="py-12 text-center">
                   <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground">
-                    {todos.filter(t => !t.completed).length === 0 
+                    {todos.filter(t => !t.completed).length === 0
                       ? "Belum ada tugas nih. Yuk bikin satu, jangan mager!"
                       : "Gak ada tugas yang sesuai filter. Coba ubah filter-nya!"}
                   </p>
