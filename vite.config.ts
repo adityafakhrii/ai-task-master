@@ -24,6 +24,17 @@ export default defineConfig({
             src: 'catetyuk2.png',
             sizes: '512x512',
             type: 'image/png'
+          },
+          {
+            src: 'catetyuk2.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable' // Add a maskable icon for adaptive icons on Android
+          },
+          {
+            src: 'catetyuk2.png',
+            sizes: '1024x1024',
+            type: 'image/png' // Add a larger icon for higher resolution screens
           }
         ]
       }
