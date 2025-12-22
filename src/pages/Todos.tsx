@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, LogOut, Trash2, Edit, User, Loader2, Calendar, Clock, ArrowUpDown, Undo2, CheckCircle2 } from 'lucide-react';
+import { Plus, LogOut, Trash2, Edit, User, Loader2, Calendar, Clock, ArrowUpDown, Undo2, CheckCircle2, ListTodo } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -505,7 +505,7 @@ export default function Todos() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
-      <div className="container mx-auto p-4 max-w-4xl">
+      <div className="container mx-auto p-4 pb-24 max-w-4xl">
         {/* Mobile-First Header */}
         <header className="mb-6 space-y-4" role="banner">
           {/* Top Bar: Branding + User Actions */}
@@ -588,9 +588,11 @@ export default function Todos() {
 
           {/* Filter Section */}
           {/* Filter & Sort Section */}
-          <div className="flex flex-wrap gap-2">
+
+          {/* Filter & Sort Section */}
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
             <Select value={filterPriority} onValueChange={(value: any) => setFilterPriority(value)}>
-              <SelectTrigger className="flex-1 min-w-[140px]" aria-label="Filter berdasarkan prioritas">
+              <SelectTrigger className="w-full sm:flex-1 min-w-[140px]" aria-label="Filter berdasarkan prioritas">
                 <SelectValue placeholder="Prioritas" />
               </SelectTrigger>
               <SelectContent>
@@ -602,7 +604,7 @@ export default function Todos() {
             </Select>
 
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="flex-1 min-w-[140px]" aria-label="Filter berdasarkan kategori">
+              <SelectTrigger className="w-full sm:flex-1 min-w-[140px]" aria-label="Filter berdasarkan kategori">
                 <SelectValue placeholder="Kategori" />
               </SelectTrigger>
               <SelectContent>
@@ -614,7 +616,7 @@ export default function Todos() {
             </Select>
 
             <Select value={filterDateRange} onValueChange={(value: any) => setFilterDateRange(value)}>
-              <SelectTrigger className="flex-1 min-w-[140px]" aria-label="Filter berdasarkan deadline">
+              <SelectTrigger className="w-full sm:flex-1 min-w-[140px]" aria-label="Filter berdasarkan deadline">
                 <SelectValue placeholder="Deadline" />
               </SelectTrigger>
               <SelectContent>
@@ -626,7 +628,7 @@ export default function Todos() {
             </Select>
 
             <Select value={filterTag} onValueChange={setFilterTag}>
-              <SelectTrigger className="flex-1 min-w-[140px]" aria-label="Filter berdasarkan tag">
+              <SelectTrigger className="w-full sm:flex-1 min-w-[140px]" aria-label="Filter berdasarkan tag">
                 <SelectValue placeholder="Tag" />
               </SelectTrigger>
               <SelectContent>
@@ -638,7 +640,7 @@ export default function Todos() {
             </Select>
 
             <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-              <SelectTrigger className="flex-1 min-w-[140px] bg-secondary/20 border-primary/20" aria-label="Urutkan tugas berdasarkan">
+              <SelectTrigger className="col-span-2 sm:col-span-1 w-full sm:flex-1 min-w-[140px] bg-secondary/20 border-primary/20" aria-label="Urutkan tugas berdasarkan">
                 <ArrowUpDown className="h-4 w-4 mr-2 text-primary" aria-hidden="true" />
                 <SelectValue placeholder="Urutkan" />
               </SelectTrigger>
@@ -665,166 +667,203 @@ export default function Todos() {
               Tambah Tugas Baru
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-h-[90vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle>{editingTodo ? 'Edit Tugas' : 'Bikin Tugas Baru'}</DialogTitle>
-              <DialogDescription>
-                {editingTodo ? 'Update detail tugas lo di bawah ini.' : 'Tambahin tugas baru ke list lo.'}
-              </DialogDescription>
-            </DialogHeader>
-            <ScrollArea className="flex-1 pr-4">
-              <div className="space-y-3 pb-4">
-                <div className="space-y-2">
-                  <Label>Deskripsi Bahasa Alami</Label>
-                  <Input
-                    placeholder="contoh: besok pagi kirim laporan ke klien"
-                    value={nlInput}
-                    onChange={(e) => setNlInput(e.target.value)}
-                    className="border-border focus-visible:ring-0 focus-visible:border-primary/50"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={applyAIAssist}
-                    variant="secondary"
-                    type="button"
-                    loading={aiLoading}
-                    className="bg-primary/10 hover:bg-primary/20 text-primary transition-all duration-300 transform hover:scale-105"
-                  >
-                    {aiLoading ? 'Lagi mikir...' : 'Gas Analisis AI'}
-                  </Button>
-                  {typeof aiHints?.estimatedMinutes === 'number' && (
-                    <Badge variant="outline" className="bg-primary/5 border-primary/20 text-primary">Estimasi: {aiHints?.estimatedMinutes} menit</Badge>
-                  )}
-                </div>
+          <DialogContent className="w-full h-[100dvh] sm:h-auto sm:max-w-lg p-0 gap-0 rounded-none sm:rounded-lg overflow-hidden">
+            <form onSubmit={handleSubmit} className="flex flex-col h-full w-full">
+              <div className="p-6 pb-2">
+                <DialogHeader>
+                  <DialogTitle>{editingTodo ? 'Edit Tugas' : 'Bikin Tugas Baru'}</DialogTitle>
+                  <DialogDescription>
+                    {editingTodo ? 'Update detail tugas lo di bawah ini.' : 'Tambahin tugas baru ke list lo.'}
+                  </DialogDescription>
+                </DialogHeader>
               </div>
-            </ScrollArea>
-            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Judul Tugas</Label>
-                <Input
-                  id="title"
-                  placeholder="Mau ngapain hari ini?"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Deskripsi</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Kasih detail dikit..."
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="priority">Seberapa Penting?</Label>
-                  <Select
-                    value={formData.priority}
-                    onValueChange={(value: 'low' | 'medium' | 'high') =>
-                      setFormData({ ...formData, priority: value })
-                    }
-                  >
-                    <SelectTrigger id="priority">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Santai</SelectItem>
-                      <SelectItem value="medium">Biasa Aja</SelectItem>
-                      <SelectItem value="high">Penting Banget</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category">Kategori</Label>
-                  <Input
-                    id="category"
-                    placeholder="misal: Kerjaan, Pribadi"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Tanggal & Jam Jatuh Tempo (Opsional)</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !formData.due_date && "text-muted-foreground"
+
+              <ScrollArea className="flex-1 w-full">
+                <div className="p-6 pt-2 space-y-6">
+                  {/* AI Section */}
+                  <div className="space-y-3 pb-4 border-b">
+                    <div className="space-y-2">
+                      <Label>Deskripsi Bahasa Alami</Label>
+                      <Input
+                        placeholder="contoh: besok pagi kirim laporan ke klien"
+                        value={nlInput}
+                        onChange={(e) => setNlInput(e.target.value)}
+                        className="border-border focus-visible:ring-0 focus-visible:border-primary/50"
+                      />
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button
+                        onClick={applyAIAssist}
+                        variant="secondary"
+                        type="button"
+                        loading={aiLoading}
+                        className="w-full sm:w-auto bg-primary/10 hover:bg-primary/20 text-primary transition-all duration-300 transform hover:scale-105"
+                      >
+                        {aiLoading ? 'Lagi mikir...' : 'Gas Analisis AI'}
+                      </Button>
+                      {typeof aiHints?.estimatedMinutes === 'number' && (
+                        <Badge variant="outline" className="justify-center sm:justify-start bg-primary/5 border-primary/20 text-primary py-2 sm:py-0">Estimasi: {aiHints?.estimatedMinutes} menit</Badge>
                       )}
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {formData.due_date ? format(formData.due_date, "PPP 'pukul' HH:mm", { locale: idLocale }) : "Pilih tanggal & jam"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={formData.due_date || undefined}
-                      onSelect={(date) => setFormData({ ...formData, due_date: date || null })}
-                      initialFocus
-                    />
-                    <div className="p-3 border-t border-border">
-                      <Label className="text-sm mb-2 block">Jam</Label>
-                      <div className="flex gap-2 items-center">
+                    </div>
+                  </div>
+
+                  {/* Manual Inputs */}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="title">Judul Tugas</Label>
+                      <Input
+                        id="title"
+                        placeholder="Mau ngapain hari ini?"
+                        value={formData.title}
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Deskripsi</Label>
+                      <Textarea
+                        id="description"
+                        placeholder="Kasih detail dikit..."
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        rows={3}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="priority">Seberapa Penting?</Label>
+                        <Select
+                          value={formData.priority}
+                          onValueChange={(value: 'low' | 'medium' | 'high') =>
+                            setFormData({ ...formData, priority: value })
+                          }
+                        >
+                          <SelectTrigger id="priority">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent z-index={150}>
+                            <SelectItem value="low">Santai</SelectItem>
+                            <SelectItem value="medium">Biasa Aja</SelectItem>
+                            <SelectItem value="high">Penting Banget</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="category">Kategori</Label>
                         <Input
-                          type="number"
-                          min="0"
-                          max="23"
-                          placeholder="HH"
-                          value={formData.due_date ? formData.due_date.getHours() : ''}
-                          onChange={(e) => {
-                            const hours = parseInt(e.target.value) || 0;
-                            const newDate = formData.due_date ? new Date(formData.due_date) : new Date();
-                            newDate.setHours(hours);
-                            setFormData({ ...formData, due_date: newDate });
-                          }}
-                          className="w-20"
-                        />
-                        <span>:</span>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="59"
-                          placeholder="MM"
-                          value={formData.due_date ? formData.due_date.getMinutes() : ''}
-                          onChange={(e) => {
-                            const minutes = parseInt(e.target.value) || 0;
-                            const newDate = formData.due_date ? new Date(formData.due_date) : new Date();
-                            newDate.setMinutes(minutes);
-                            setFormData({ ...formData, due_date: newDate });
-                          }}
-                          className="w-20"
+                          id="category"
+                          placeholder="misal: Kerjaan, Pribadi"
+                          value={formData.category}
+                          onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                         />
                       </div>
                     </div>
-                  </PopoverContent>
-                </Popover>
+                    <div className="space-y-2">
+                      <Label>Tanggal & Jam Jatuh Tempo (Opsional)</Label>
+                      <Popover modal={true}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !formData.due_date && "text-muted-foreground"
+                            )}
+                          >
+                            <Calendar className="mr-2 h-4 w-4" />
+                            {formData.due_date ? format(formData.due_date, "PPP 'pukul' HH:mm", { locale: idLocale }) : "Pilih tanggal & jam"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={formData.due_date || undefined}
+                            onSelect={(date) => setFormData({ ...formData, due_date: date || null })}
+                            initialFocus
+                          />
+                          <div className="p-3 border-t border-border">
+                            <Label className="text-sm mb-2 block">Jam</Label>
+                            <div className="flex gap-2 items-center">
+                              <Select
+                                value={formData.due_date ? formData.due_date.getHours().toString() : undefined}
+                                onValueChange={(value) => {
+                                  const hours = parseInt(value);
+                                  const newDate = formData.due_date ? new Date(formData.due_date) : new Date();
+                                  newDate.setHours(hours);
+                                  setFormData({ ...formData, due_date: newDate });
+                                }}
+                              >
+                                <SelectTrigger className="w-[70px]">
+                                  <SelectValue placeholder="HH" />
+                                </SelectTrigger>
+                                <SelectContent position="popper" className="max-h-[200px]">
+                                  {Array.from({ length: 24 }).map((_, i) => (
+                                    <SelectItem key={i} value={i.toString()}>
+                                      {i.toString().padStart(2, '0')}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <span className="text-muted-foreground">:</span>
+                              <Select
+                                value={formData.due_date ? formData.due_date.getMinutes().toString() : undefined}
+                                onValueChange={(value) => {
+                                  const minutes = parseInt(value);
+                                  const newDate = formData.due_date ? new Date(formData.due_date) : new Date();
+                                  newDate.setMinutes(minutes);
+                                  setFormData({ ...formData, due_date: newDate });
+                                }}
+                              >
+                                <SelectTrigger className="w-[70px]">
+                                  <SelectValue placeholder="MM" />
+                                </SelectTrigger>
+                                <SelectContent position="popper" className="max-h-[200px]">
+                                  {Array.from({ length: 60 }).map((_, i) => (
+                                    <SelectItem key={i} value={i.toString()}>
+                                      {i.toString().padStart(2, '0')}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                </div>
+              </ScrollArea>
+
+              <div className="p-6 pt-4 border-t bg-background">
+                <Button type="submit" className="w-full" loading={submitLoading}>
+                  {submitLoading ? 'Tunggu bentar yak...' : editingTodo ? 'Update Tugas' : 'Simpan Tugas'}
+                </Button>
               </div>
-              <Button type="submit" className="w-full" loading={submitLoading}>
-                {submitLoading ? 'Tunggu bentar yak...' : editingTodo ? 'Update Tugas' : 'Simpan Tugas'}
-              </Button>
             </form>
           </DialogContent>
         </Dialog>
 
         {/* Todo List with Tabs */}
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'active' | 'completed')} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6" aria-label="Filter tugas berdasarkan status">
-            <TabsTrigger value="active" aria-label={`Tugas belum selesai, ${todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length} tugas`}>
+          <TabsList className="hidden w-full h-auto p-1 bg-transparent sm:bg-muted sm:grid sm:grid-cols-3 gap-2 overflow-x-auto sm:overflow-visible no-scrollbar mb-6" aria-label="Filter tugas berdasarkan status">
+            <TabsTrigger
+              value="active"
+              className="flex-1 min-w-[120px] sm:min-w-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-full sm:rounded-md border sm:border-0 border-transparent data-[state=active]:border-border"
+              aria-label={`Tugas belum selesai, ${todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length} tugas`}
+            >
               Belum Beres ({todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length})
             </TabsTrigger>
-            <TabsTrigger value="overdue" className="data-[state=active]:bg-red-500/10 data-[state=active]:text-red-600" aria-label="Tugas lewat deadline">
+            <TabsTrigger
+              value="overdue"
+              className="flex-1 min-w-[120px] sm:min-w-0 data-[state=active]:bg-red-500/10 data-[state=active]:text-red-600 data-[state=active]:shadow-sm rounded-full sm:rounded-md border sm:border-0 border-transparent data-[state=active]:border-red-200"
+              aria-label="Tugas lewat deadline"
+            >
               Lewat Deadline ({todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date()).length})
             </TabsTrigger>
-            <TabsTrigger value="completed" aria-label={`Tugas sudah selesai, ${todos.filter(t => t.completed).length} tugas`}>
+            <TabsTrigger
+              value="completed"
+              className="flex-1 min-w-[120px] sm:min-w-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-full sm:rounded-md border sm:border-0 border-transparent data-[state=active]:border-border"
+              aria-label={`Tugas sudah selesai, ${todos.filter(t => t.completed).length} tugas`}
+            >
               Udah Beres ({todos.filter(t => t.completed).length})
             </TabsTrigger>
           </TabsList>
@@ -1186,6 +1225,65 @@ export default function Todos() {
         </Dialog>
       )}
       <Footer />
+
+      {/* Mobile Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-t border-border sm:hidden transition-transform duration-300">
+        <div className="grid grid-cols-3 h-16">
+          <button
+            onClick={() => setActiveTab('active')}
+            className={cn(
+              "flex flex-col items-center justify-center gap-1 transition-colors",
+              activeTab === 'active' ? "text-primary bg-primary/5" : "text-muted-foreground hover:bg-secondary/50"
+            )}
+          >
+            <div className={cn("rounded-full p-1", activeTab === 'active' ? "bg-primary/10" : "bg-transparent")}>
+              <div className="relative">
+                <ListTodo className="h-5 w-5" />
+                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-blue-500 text-[8px] font-bold text-white">
+                  {todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length}
+                </span>
+              </div>
+            </div>
+            <span className="text-[10px] font-medium">Belum Beres</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('overdue')}
+            className={cn(
+              "flex flex-col items-center justify-center gap-1 transition-colors",
+              activeTab === 'overdue' ? "text-red-500 bg-red-50" : "text-muted-foreground hover:bg-secondary/50"
+            )}
+          >
+            <div className={cn("rounded-full p-1", activeTab === 'overdue' ? "bg-red-100" : "bg-transparent")}>
+              <div className="relative">
+                <Clock className="h-5 w-5" />
+                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white">
+                  {todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date()).length}
+                </span>
+              </div>
+            </div>
+            <span className="text-[10px] font-medium">Lewat Deadline</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('completed')}
+            className={cn(
+              "flex flex-col items-center justify-center gap-1 transition-colors",
+              activeTab === 'completed' ? "text-green-600 bg-green-50" : "text-muted-foreground hover:bg-secondary/50"
+            )}
+          >
+            <div className={cn("rounded-full p-1", activeTab === 'completed' ? "bg-green-100" : "bg-transparent")}>
+              <div className="relative">
+                <CheckCircle2 className="h-5 w-5" />
+                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-green-500 text-[8px] font-bold text-white">
+                  {todos.filter(t => t.completed).length}
+                </span>
+              </div>
+            </div>
+            <span className="text-[10px] font-medium">Udah Beres</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
