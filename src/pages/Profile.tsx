@@ -145,6 +145,13 @@ export default function Profile() {
         }
     };
 
+    // Generate crypto-secure random filename for better security
+    const generateSecureFileName = () => {
+        const array = new Uint8Array(16);
+        crypto.getRandomValues(array);
+        return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    };
+
     const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         try {
             setUploading(true);
@@ -155,7 +162,8 @@ export default function Profile() {
 
             const file = event.target.files[0];
             const fileExt = file.name.split('.').pop();
-            const filePath = `${user!.id}/${Math.random()}.${fileExt}`;
+            // Use crypto-secure random instead of Math.random()
+            const filePath = `${user!.id}/${generateSecureFileName()}.${fileExt}`;
 
             const { error: uploadError } = await supabase.storage
                 .from('avatars')
@@ -204,23 +212,29 @@ export default function Profile() {
         try {
             setLoading(true);
 
-            // Delete user data from profiles table
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .delete()
-                .eq('id', user!.id);
+            // Clean up avatar files from storage before deleting account
+            try {
+                const { data: files } = await supabase.storage
+                    .from('avatars')
+                    .list(user!.id);
 
-            if (profileError) throw profileError;
+                if (files && files.length > 0) {
+                    const filePaths = files.map(file => `${user!.id}/${file.name}`);
+                    await supabase.storage.from('avatars').remove(filePaths);
+                }
+            } catch (storageError) {
+                // Continue with deletion even if storage cleanup fails
+                console.error('Storage cleanup failed:', storageError);
+            }
 
-            // Delete user account
+            // Delete user account (this also deletes profile and todos via the improved function)
             const { error: deleteError } = await supabase.rpc('delete_user' as any);
 
             if (deleteError) {
-                // If RPC doesn't exist, user needs to contact support
                 toast({
                     variant: "destructive",
                     title: "Gagal Hapus Akun",
-                    description: "Data profil udah kehapus, tapi akun masih ada. Hubungi support ya!"
+                    description: deleteError.message || "Terjadi kesalahan saat menghapus akun. Coba lagi ya!"
                 });
                 return;
             }
