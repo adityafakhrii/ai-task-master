@@ -21,6 +21,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import Footer from '@/components/Footer';
+import { MobileLayout } from '@/components/MobileLayout';
 
 export default function Profile() {
     const { user, signOut, loading: authLoading } = useAuth();
@@ -260,228 +261,232 @@ export default function Profile() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-secondary/20 p-4">
-            <div className="flex-1 container mx-auto max-w-2xl pt-8">
-                <Button
-                    variant="ghost"
-                    onClick={() => navigate('/todos')}
-                    className="mb-6"
-                    aria-label="Kembali ke halaman tugas"
-                >
-                    <ArrowLeft className="h-4 w-4 mr-2" aria-hidden="true" />
-                    Balik ke List Tugas
-                </Button>
+        <MobileLayout>
+            <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-secondary/20 p-4">
+                <div className="flex-1 container mx-auto max-w-2xl pt-8">
+                    <Button
+                        variant="ghost"
+                        onClick={() => navigate('/todos')}
+                        className="mb-6"
+                        aria-label="Kembali ke halaman tugas"
+                    >
+                        <ArrowLeft className="h-4 w-4 mr-2" aria-hidden="true" />
+                        Balik ke List Tugas
+                    </Button>
 
-                <h1 className="text-3xl font-bold mb-8">Pengaturan Akun</h1>
+                    <h1 className="text-3xl font-bold mb-8">Pengaturan Akun</h1>
 
-                <div className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <div className="flex items-center gap-2">
-                                <User className="h-5 w-5 text-primary" aria-hidden="true" />
-                                <CardTitle>Info Profil Lo</CardTitle>
-                            </div>
-                            <CardDescription>Update data diri lo di sini, biar makin kece.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={handleUpdateProfile} className="space-y-6">
-                                <div className="flex flex-col items-center gap-4">
-                                    <Avatar className="h-24 w-24">
-                                        <AvatarImage src={avatarUrl} alt={fullName || 'Foto profil'} />
-                                        <AvatarFallback className="text-2xl">
-                                            {fullName ? fullName.charAt(0).toUpperCase() : user?.email?.charAt(0).toUpperCase()}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex gap-2">
-                                        <input
-                                            ref={fileInputRef}
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={handleAvatarUpload}
-                                            className="hidden"
-                                            aria-label="Upload foto profil"
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => fileInputRef.current?.click()}
-                                            disabled={uploading}
-                                            aria-label="Ubah foto profil"
-                                        >
-                                            <Camera className="h-4 w-4 mr-2" aria-hidden="true" />
-                                            {uploading ? 'Lagi diupload...' : avatarUrl ? 'Ganti Foto' : 'Upload Foto'}
-                                        </Button>
-                                    </div>
+                    <div className="space-y-6">
+                        <Card>
+                            <CardHeader>
+                                <div className="flex items-center gap-2">
+                                    <User className="h-5 w-5 text-primary" aria-hidden="true" />
+                                    <CardTitle>Info Profil Lo</CardTitle>
                                 </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="email">Email Lo</Label>
-                                    <Input id="email" value={user?.email} disabled className="bg-muted" aria-label="Email akun (tidak bisa diubah)" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="fullName">Nama Lengkap</Label>
-                                    <Input
-                                        id="fullName"
-                                        value={fullName}
-                                        onChange={(e) => setFullName(e.target.value)}
-                                        placeholder="Isi nama lengkap lo"
-                                        aria-label="Nama lengkap"
-                                    />
-                                </div>
-                                <Button type="submit" loading={loading} aria-label="Simpan perubahan profil">
-                                    {loading ? 'Lagi diupdate...' : 'Update Profil'}
-                                </Button>
-                            </form>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <div className="flex items-center gap-2">
-                                <Lock className="h-5 w-5 text-primary" aria-hidden="true" />
-                                <CardTitle>{(user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google')) ? 'Atur Password Login' : 'Ganti Password'}</CardTitle>
-                            </div>
-                            <CardDescription>
-                                {(user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google'))
-                                    ? 'Tambahin password biar bisa login pake email juga.'
-                                    : 'Ganti password secara berkala biar akun lo tetep aman.'}
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={handleUpdatePassword} className="space-y-4">
-                                {!(user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google')) && (
-                                    <div className="space-y-2">
-                                        <Label htmlFor="oldPassword">Password Lama</Label>
-                                        <Input
-                                            id="oldPassword"
-                                            type="password"
-                                            value={oldPassword}
-                                            onChange={(e) => setOldPassword(e.target.value)}
-                                            placeholder="Masukin password lama dulu"
-                                            required
-                                        />
-                                    </div>
-                                )}
-                                <div className="space-y-2">
-                                    <Label htmlFor="password">Password Baru</Label>
-                                    <Input
-                                        id="password"
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="Isi password baru (min. 6 karakter)"
-                                        aria-label="Password baru"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="confirmPassword">Konfirmasi Password Baru</Label>
-                                    <Input
-                                        id="confirmPassword"
-                                        type="password"
-                                        value={confirmPassword}
-                                        onChange={(e) => setConfirmPassword(e.target.value)}
-                                        placeholder="Ulangi password baru"
-                                        aria-label="Konfirmasi password baru"
-                                    />
-                                </div>
-                                <Button type="submit" loading={loading} disabled={!password || (!oldPassword && !(user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google')))}>
-                                    {loading ? 'Lagi proses...' : (user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google')) ? 'Buat Password Baru' : 'Ganti Password Sekarang'}
-                                </Button>
-                            </form>
-                        </CardContent>
-                    </Card>
-
-                    {/* Danger Zone */}
-                    <Card className="border-destructive">
-                        <CardHeader>
-                            <div className="flex items-center gap-2">
-                                <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden="true" />
-                                <CardTitle className="text-destructive">Zona Bahaya</CardTitle>
-                            </div>
-                            <CardDescription>
-                                Aksi di sini bersifat permanen dan gak bisa dibatalin. Mikir mateng-mateng ya!
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <AlertDialog open={showFirstDeleteDialog} onOpenChange={setShowFirstDeleteDialog}>
-                                <AlertDialogTrigger asChild>
-                                    <Button
-                                        variant="destructive"
-                                        className="w-full"
-                                        aria-label="Hapus akun permanen"
-                                    >
-                                        <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
-                                        Hapus Akun Permanen
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Yakin Mau Hapus Akun?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Ini keputusan besar nih! Semua data lo bakal hilang selamanya, termasuk:
-                                            <ul className="list-disc list-inside mt-2 space-y-1">
-                                                <li>Semua tugas yang udah lo bikin</li>
-                                                <li>Riwayat aktivitas lo</li>
-                                                <li>Foto profil dan pengaturan</li>
-                                            </ul>
-                                            <p className="mt-4 font-semibold">Aksi ini GAK BISA dibatalin!</p>
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Gak Jadi Deh</AlertDialogCancel>
-                                        <AlertDialogAction
-                                            onClick={() => {
-                                                setShowFirstDeleteDialog(false);
-                                                setShowSecondDeleteDialog(true);
-                                            }}
-                                            className="bg-destructive hover:bg-destructive/90"
-                                        >
-                                            Lanjut, Aku Yakin
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-
-                            <AlertDialog open={showSecondDeleteDialog} onOpenChange={setShowSecondDeleteDialog}>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Konfirmasi Terakhir!</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            <p className="mb-4">
-                                                Ketik <strong className="text-destructive">HAPUS AKUN SAYA</strong> di bawah untuk konfirmasi penghapusan akun.
-                                            </p>
-                                            <Input
-                                                value={deleteConfirmText}
-                                                onChange={(e) => setDeleteConfirmText(e.target.value)}
-                                                placeholder="Ketik: HAPUS AKUN SAYA"
-                                                className="mb-4"
-                                                aria-label="Ketik HAPUS AKUN SAYA untuk konfirmasi"
+                                <CardDescription>Update data diri lo di sini, biar makin kece.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <form onSubmit={handleUpdateProfile} className="space-y-6">
+                                    <div className="flex flex-col items-center gap-4">
+                                        <Avatar className="h-24 w-24">
+                                            <AvatarImage src={avatarUrl} alt={fullName || 'Foto profil'} />
+                                            <AvatarFallback className="text-2xl">
+                                                {fullName ? fullName.charAt(0).toUpperCase() : user?.email?.charAt(0).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex gap-2">
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleAvatarUpload}
+                                                className="hidden"
+                                                aria-label="Upload foto profil"
                                             />
-                                            <p className="text-sm text-muted-foreground">
-                                                Ini beneran terakhir lho, setelah ini gak ada jalan balik!
-                                            </p>
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel onClick={() => setDeleteConfirmText('')}>
-                                            Batalin Aja
-                                        </AlertDialogCancel>
-                                        <AlertDialogAction
-                                            onClick={handleDeleteAccount}
-                                            disabled={deleteConfirmText !== 'HAPUS AKUN SAYA' || loading}
-                                            className="bg-destructive hover:bg-destructive/90"
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                disabled={uploading}
+                                                aria-label="Ubah foto profil"
+                                            >
+                                                <Camera className="h-4 w-4 mr-2" aria-hidden="true" />
+                                                {uploading ? 'Lagi diupload...' : avatarUrl ? 'Ganti Foto' : 'Upload Foto'}
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="email">Email Lo</Label>
+                                        <Input id="email" value={user?.email} disabled className="bg-muted" aria-label="Email akun (tidak bisa diubah)" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="fullName">Nama Lengkap</Label>
+                                        <Input
+                                            id="fullName"
+                                            value={fullName}
+                                            onChange={(e) => setFullName(e.target.value)}
+                                            placeholder="Isi nama lengkap lo"
+                                            aria-label="Nama lengkap"
+                                        />
+                                    </div>
+                                    <Button type="submit" loading={loading} aria-label="Simpan perubahan profil">
+                                        {loading ? 'Lagi diupdate...' : 'Update Profil'}
+                                    </Button>
+                                </form>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <div className="flex items-center gap-2">
+                                    <Lock className="h-5 w-5 text-primary" aria-hidden="true" />
+                                    <CardTitle>{(user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google')) ? 'Atur Password Login' : 'Ganti Password'}</CardTitle>
+                                </div>
+                                <CardDescription>
+                                    {(user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google'))
+                                        ? 'Tambahin password biar bisa login pake email juga.'
+                                        : 'Ganti password secara berkala biar akun lo tetep aman.'}
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <form onSubmit={handleUpdatePassword} className="space-y-4">
+                                    {!(user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google')) && (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="oldPassword">Password Lama</Label>
+                                            <Input
+                                                id="oldPassword"
+                                                type="password"
+                                                value={oldPassword}
+                                                onChange={(e) => setOldPassword(e.target.value)}
+                                                placeholder="Masukin password lama dulu"
+                                                required
+                                            />
+                                        </div>
+                                    )}
+                                    <div className="space-y-2">
+                                        <Label htmlFor="password">Password Baru</Label>
+                                        <Input
+                                            id="password"
+                                            type="password"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            placeholder="Isi password baru (min. 6 karakter)"
+                                            aria-label="Password baru"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="confirmPassword">Konfirmasi Password Baru</Label>
+                                        <Input
+                                            id="confirmPassword"
+                                            type="password"
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            placeholder="Ulangi password baru"
+                                            aria-label="Konfirmasi password baru"
+                                        />
+                                    </div>
+                                    <Button type="submit" loading={loading} disabled={!password || (!oldPassword && !(user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google')))}>
+                                        {loading ? 'Lagi proses...' : (user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google')) ? 'Buat Password Baru' : 'Ganti Password Sekarang'}
+                                    </Button>
+                                </form>
+                            </CardContent>
+                        </Card>
+
+                        {/* Danger Zone */}
+                        <Card className="border-destructive">
+                            <CardHeader>
+                                <div className="flex items-center gap-2">
+                                    <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden="true" />
+                                    <CardTitle className="text-destructive">Zona Bahaya</CardTitle>
+                                </div>
+                                <CardDescription>
+                                    Aksi di sini bersifat permanen dan gak bisa dibatalin. Mikir mateng-mateng ya!
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <AlertDialog open={showFirstDeleteDialog} onOpenChange={setShowFirstDeleteDialog}>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            variant="destructive"
+                                            className="w-full"
+                                            aria-label="Hapus akun permanen"
                                         >
-                                            {loading ? 'Lagi Proses...' : 'Hapus Akun Selamanya'}
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </CardContent>
-                    </Card>
+                                            <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
+                                            Hapus Akun Permanen
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Yakin Mau Hapus Akun?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Ini keputusan besar nih! Semua data lo bakal hilang selamanya, termasuk:
+                                                <ul className="list-disc list-inside mt-2 space-y-1">
+                                                    <li>Semua tugas yang udah lo bikin</li>
+                                                    <li>Riwayat aktivitas lo</li>
+                                                    <li>Foto profil dan pengaturan</li>
+                                                </ul>
+                                                <p className="mt-4 font-semibold">Aksi ini GAK BISA dibatalin!</p>
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Gak Jadi Deh</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={() => {
+                                                    setShowFirstDeleteDialog(false);
+                                                    setShowSecondDeleteDialog(true);
+                                                }}
+                                                className="bg-destructive hover:bg-destructive/90"
+                                            >
+                                                Lanjut, Aku Yakin
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+
+                                <AlertDialog open={showSecondDeleteDialog} onOpenChange={setShowSecondDeleteDialog}>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Konfirmasi Terakhir!</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                <p className="mb-4">
+                                                    Ketik <strong className="text-destructive">HAPUS AKUN SAYA</strong> di bawah untuk konfirmasi penghapusan akun.
+                                                </p>
+                                                <Input
+                                                    value={deleteConfirmText}
+                                                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                                    placeholder="Ketik: HAPUS AKUN SAYA"
+                                                    className="mb-4"
+                                                    aria-label="Ketik HAPUS AKUN SAYA untuk konfirmasi"
+                                                />
+                                                <p className="text-sm text-muted-foreground">
+                                                    Ini beneran terakhir lho, setelah ini gak ada jalan balik!
+                                                </p>
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel onClick={() => setDeleteConfirmText('')}>
+                                                Batalin Aja
+                                            </AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={handleDeleteAccount}
+                                                disabled={deleteConfirmText !== 'HAPUS AKUN SAYA' || loading}
+                                                className="bg-destructive hover:bg-destructive/90"
+                                            >
+                                                {loading ? 'Lagi Proses...' : 'Hapus Akun Selamanya'}
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+                <div className="hidden md:block">
+                    <Footer />
                 </div>
             </div>
-            <Footer />
-        </div>
+        </MobileLayout>
     );
 }

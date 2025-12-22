@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { MobileLayout } from '@/components/MobileLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, LogOut, Trash2, Edit, User, Loader2, Calendar, Clock, ArrowUpDown, Undo2, CheckCircle2, ListTodo } from 'lucide-react';
+import {
+  LogOut,
+  User,
+  Plus,
+  Calendar,
+  Clock,
+  Search,
+  MoreVertical,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Trash2,
+  Edit,
+  ArrowUpDown,
+  Undo2,
+  ListFilter
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -100,6 +117,14 @@ export default function Todos() {
     }
     fetchTodos();
   }, [user, authLoading, navigate]);
+
+  const location = useLocation();
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('action') === 'new') {
+      openNewDialog();
+    }
+  }, [location.search]);
 
   const fetchTodos = async () => {
     try {
@@ -504,786 +529,759 @@ export default function Todos() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
-      <div className="container mx-auto p-4 pb-24 max-w-4xl">
-        {/* Mobile-First Header */}
-        <header className="mb-6 space-y-4" role="banner">
-          {/* Top Bar: Branding + User Actions */}
-          <div className="flex items-center justify-between gap-4">
-            {/* Branding */}
-            <div className="flex items-center gap-2">
-              <img src="/CatetYuk3.png" alt="CatetYuk Logo" className="h-14 w-14 flex-shrink-0" aria-hidden="true" />
-              <div className="min-w-0">
-                <h1 className="text-2xl sm:text-3xl font-bold leading-tight">CatetYuk</h1>
-                <p className="text-xs text-muted-foreground hidden sm:block">simplify your task</p>
-              </div>
-            </div>
-
-            {/* User Menu - Mobile Optimized */}
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => navigate('/profile')}
-                variant="ghost"
-                size="sm"
-                className="gap-2"
-                aria-label="Buka profil pengguna"
-              >
-                <User className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">{user?.user_metadata.full_name || user?.email?.split('@')[0] || 'Profil'}</span>
-              </Button>
-              <Button
-                onClick={handleSignOut}
-                variant="ghost"
-                size="sm"
-                aria-label="Keluar dari aplikasi"
-                loading={signOutLoading}
-              >
-                <LogOut className="h-4 w-4" aria-hidden="true" />
-                <span className="sr-only">{signOutLoading ? 'Cabut dulu...' : 'Keluar'}</span>
-              </Button>
-            </div>
-          </div>
-
-          {/* Search Bar - Full Width on Mobile */}
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="flex-1 flex gap-2">
-              <TextInput
-                placeholder="Cari tugas... (real-time)"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1"
-                aria-label="Cari tugas"
-              />
-              {searchLoading && (
-                <div className="flex items-center">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+    <MobileLayout>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
+        <div className="container mx-auto p-4 pb-24 max-w-4xl">
+          {/* Mobile-First Header */}
+          <header className="mb-6 space-y-4" role="banner">
+            {/* Top Bar: Branding + User Actions */}
+            <div className="flex items-center justify-between gap-4">
+              {/* Branding */}
+              <div className="flex items-center gap-2">
+                <img src="/CatetYuk3.png" alt="CatetYuk Logo" className="h-14 w-14 flex-shrink-0" aria-hidden="true" />
+                <div className="min-w-0">
+                  <h1 className="text-2xl sm:text-3xl font-bold leading-tight">CatetYuk</h1>
+                  <p className="text-xs text-muted-foreground">simplify your task</p>
                 </div>
-              )}
-            </div>
-
-            {/* AI Features - Horizontal Scroll on Mobile */}
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              <Button
-                onClick={runDailySummary}
-                variant="outline"
-                size="sm"
-                className="whitespace-nowrap"
-                aria-label="Lihat ringkasan harian"
-                loading={summaryLoading}
-              >
-                {summaryLoading ? 'Tunggu...' : 'Ringkasan'}
-              </Button>
-              <Button
-                onClick={runAnomalyDetection}
-                variant="outline"
-                size="sm"
-                className="whitespace-nowrap"
-                aria-label="Deteksi anomali tugas"
-                loading={anomalyLoading}
-              >
-                {anomalyLoading ? 'Analisis...' : 'Anomali'}
-              </Button>
-            </div>
-          </div>
-
-          {/* Filter Section */}
-          {/* Filter & Sort Section */}
-
-          {/* Filter & Sort Section */}
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
-            <Select value={filterPriority} onValueChange={(value: any) => setFilterPriority(value)}>
-              <SelectTrigger className="w-full sm:flex-1 min-w-[140px]" aria-label="Filter berdasarkan prioritas">
-                <SelectValue placeholder="Prioritas" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Prioritas</SelectItem>
-                <SelectItem value="high">Penting Banget</SelectItem>
-                <SelectItem value="medium">Biasa Aja</SelectItem>
-                <SelectItem value="low">Santai</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-full sm:flex-1 min-w-[140px]" aria-label="Filter berdasarkan kategori">
-                <SelectValue placeholder="Kategori" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Kategori</SelectItem>
-                {uniqueCategories.map((cat) => (
-                  <SelectItem key={cat} value={cat!}>{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={filterDateRange} onValueChange={(value: any) => setFilterDateRange(value)}>
-              <SelectTrigger className="w-full sm:flex-1 min-w-[140px]" aria-label="Filter berdasarkan deadline">
-                <SelectValue placeholder="Deadline" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Deadline</SelectItem>
-                <SelectItem value="overdue">Telat</SelectItem>
-                <SelectItem value="today">Hari Ini</SelectItem>
-                <SelectItem value="week">Minggu Ini</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filterTag} onValueChange={setFilterTag}>
-              <SelectTrigger className="w-full sm:flex-1 min-w-[140px]" aria-label="Filter berdasarkan tag">
-                <SelectValue placeholder="Tag" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Tag</SelectItem>
-                {uniqueTags.map((tag) => (
-                  <SelectItem key={tag} value={tag}>#{tag}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-              <SelectTrigger className="col-span-2 sm:col-span-1 w-full sm:flex-1 min-w-[140px] bg-secondary/20 border-primary/20" aria-label="Urutkan tugas berdasarkan">
-                <ArrowUpDown className="h-4 w-4 mr-2 text-primary" aria-hidden="true" />
-                <SelectValue placeholder="Urutkan" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="urgency">Urgensi (Default)</SelectItem>
-                <SelectItem value="priority">Prioritas</SelectItem>
-                <SelectItem value="due_date">Tanggal Deadline</SelectItem>
-                <SelectItem value="created_at">Tanggal Dibuat</SelectItem>
-                <SelectItem value="title">Judul (A-Z)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </header>
-
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button
-              onClick={openNewDialog}
-              className="w-full mb-6"
-              size="lg"
-              aria-label="Tambah tugas baru"
-            >
-              <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
-              Tambah Tugas Baru
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="w-full h-[100dvh] sm:h-auto sm:max-w-lg p-0 gap-0 rounded-none sm:rounded-lg overflow-hidden">
-            <form onSubmit={handleSubmit} className="flex flex-col h-full w-full">
-              <div className="p-6 pb-2">
-                <DialogHeader>
-                  <DialogTitle>{editingTodo ? 'Edit Tugas' : 'Bikin Tugas Baru'}</DialogTitle>
-                  <DialogDescription>
-                    {editingTodo ? 'Update detail tugas lo di bawah ini.' : 'Tambahin tugas baru ke list lo.'}
-                  </DialogDescription>
-                </DialogHeader>
               </div>
 
-              <ScrollArea className="flex-1 w-full">
-                <div className="p-6 pt-2 space-y-6">
-                  {/* AI Section */}
-                  <div className="space-y-3 pb-4 border-b">
-                    <div className="space-y-2">
-                      <Label>Deskripsi Bahasa Alami</Label>
-                      <Input
-                        placeholder="contoh: besok pagi kirim laporan ke klien"
-                        value={nlInput}
-                        onChange={(e) => setNlInput(e.target.value)}
-                        className="border-border focus-visible:ring-0 focus-visible:border-primary/50"
-                      />
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <Button
-                        onClick={applyAIAssist}
-                        variant="secondary"
-                        type="button"
-                        loading={aiLoading}
-                        className="w-full sm:w-auto bg-primary/10 hover:bg-primary/20 text-primary transition-all duration-300 transform hover:scale-105"
-                      >
-                        {aiLoading ? 'Lagi mikir...' : 'Gas Analisis AI'}
-                      </Button>
-                      {typeof aiHints?.estimatedMinutes === 'number' && (
-                        <Badge variant="outline" className="justify-center sm:justify-start bg-primary/5 border-primary/20 text-primary py-2 sm:py-0">Estimasi: {aiHints?.estimatedMinutes} menit</Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Manual Inputs */}
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="title">Judul Tugas</Label>
-                      <Input
-                        id="title"
-                        placeholder="Mau ngapain hari ini?"
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="description">Deskripsi</Label>
-                      <Textarea
-                        id="description"
-                        placeholder="Kasih detail dikit..."
-                        value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        rows={3}
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="priority">Seberapa Penting?</Label>
-                        <Select
-                          value={formData.priority}
-                          onValueChange={(value: 'low' | 'medium' | 'high') =>
-                            setFormData({ ...formData, priority: value })
-                          }
-                        >
-                          <SelectTrigger id="priority">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent z-index={150}>
-                            <SelectItem value="low">Santai</SelectItem>
-                            <SelectItem value="medium">Biasa Aja</SelectItem>
-                            <SelectItem value="high">Penting Banget</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="category">Kategori</Label>
-                        <Input
-                          id="category"
-                          placeholder="misal: Kerjaan, Pribadi"
-                          value={formData.category}
-                          onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Tanggal & Jam Jatuh Tempo (Opsional)</Label>
-                      <Popover modal={true}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !formData.due_date && "text-muted-foreground"
-                            )}
-                          >
-                            <Calendar className="mr-2 h-4 w-4" />
-                            {formData.due_date ? format(formData.due_date, "PPP 'pukul' HH:mm", { locale: idLocale }) : "Pilih tanggal & jam"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <CalendarComponent
-                            mode="single"
-                            selected={formData.due_date || undefined}
-                            onSelect={(date) => setFormData({ ...formData, due_date: date || null })}
-                            initialFocus
-                          />
-                          <div className="p-3 border-t border-border">
-                            <Label className="text-sm mb-2 block">Jam</Label>
-                            <div className="flex gap-2 items-center">
-                              <Select
-                                value={formData.due_date ? formData.due_date.getHours().toString() : undefined}
-                                onValueChange={(value) => {
-                                  const hours = parseInt(value);
-                                  const newDate = formData.due_date ? new Date(formData.due_date) : new Date();
-                                  newDate.setHours(hours);
-                                  setFormData({ ...formData, due_date: newDate });
-                                }}
-                              >
-                                <SelectTrigger className="w-[70px]">
-                                  <SelectValue placeholder="HH" />
-                                </SelectTrigger>
-                                <SelectContent position="popper" className="max-h-[200px]">
-                                  {Array.from({ length: 24 }).map((_, i) => (
-                                    <SelectItem key={i} value={i.toString()}>
-                                      {i.toString().padStart(2, '0')}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <span className="text-muted-foreground">:</span>
-                              <Select
-                                value={formData.due_date ? formData.due_date.getMinutes().toString() : undefined}
-                                onValueChange={(value) => {
-                                  const minutes = parseInt(value);
-                                  const newDate = formData.due_date ? new Date(formData.due_date) : new Date();
-                                  newDate.setMinutes(minutes);
-                                  setFormData({ ...formData, due_date: newDate });
-                                }}
-                              >
-                                <SelectTrigger className="w-[70px]">
-                                  <SelectValue placeholder="MM" />
-                                </SelectTrigger>
-                                <SelectContent position="popper" className="max-h-[200px]">
-                                  {Array.from({ length: 60 }).map((_, i) => (
-                                    <SelectItem key={i} value={i.toString()}>
-                                      {i.toString().padStart(2, '0')}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
-                </div>
-              </ScrollArea>
-
-              <div className="p-6 pt-4 border-t bg-background">
-                <Button type="submit" className="w-full" loading={submitLoading}>
-                  {submitLoading ? 'Tunggu bentar yak...' : editingTodo ? 'Update Tugas' : 'Simpan Tugas'}
+              {/* User Menu - Mobile Optimized */}
+              <div className="hidden md:flex items-center gap-2">
+                <Button
+                  onClick={() => navigate('/profile')}
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2"
+                  aria-label="Buka profil pengguna"
+                >
+                  <User className="h-4 w-4" aria-hidden="true" />
+                  <span className="hidden sm:inline">{user?.user_metadata.full_name || user?.email?.split('@')[0] || 'Profil'}</span>
+                </Button>
+                <Button
+                  onClick={handleSignOut}
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Keluar dari aplikasi"
+                  loading={signOutLoading}
+                >
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
+                  <span className="sr-only">{signOutLoading ? 'Cabut dulu...' : 'Keluar'}</span>
                 </Button>
               </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Todo List with Tabs */}
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'active' | 'completed')} className="w-full">
-          <TabsList className="hidden w-full h-auto p-1 bg-transparent sm:bg-muted sm:grid sm:grid-cols-3 gap-2 overflow-x-auto sm:overflow-visible no-scrollbar mb-6" aria-label="Filter tugas berdasarkan status">
-            <TabsTrigger
-              value="active"
-              className="flex-1 min-w-[120px] sm:min-w-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-full sm:rounded-md border sm:border-0 border-transparent data-[state=active]:border-border"
-              aria-label={`Tugas belum selesai, ${todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length} tugas`}
-            >
-              Belum Beres ({todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length})
-            </TabsTrigger>
-            <TabsTrigger
-              value="overdue"
-              className="flex-1 min-w-[120px] sm:min-w-0 data-[state=active]:bg-red-500/10 data-[state=active]:text-red-600 data-[state=active]:shadow-sm rounded-full sm:rounded-md border sm:border-0 border-transparent data-[state=active]:border-red-200"
-              aria-label="Tugas lewat deadline"
-            >
-              Lewat Deadline ({todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date()).length})
-            </TabsTrigger>
-            <TabsTrigger
-              value="completed"
-              className="flex-1 min-w-[120px] sm:min-w-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-full sm:rounded-md border sm:border-0 border-transparent data-[state=active]:border-border"
-              aria-label={`Tugas sudah selesai, ${todos.filter(t => t.completed).length} tugas`}
-            >
-              Udah Beres ({todos.filter(t => t.completed).length})
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Active Todos Tab */}
-          <TabsContent value="active" className="space-y-3">
-            {filterAndSortTodos(todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date()))).length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">
-                    {todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length === 0
-                      ? "Tidak ada tugas yang aktif saat ini. Cek tab 'Lewat Deadline' juga ya!"
-                      : "Gak ada tugas yang sesuai filter. Coba ubah filter-nya!"}
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              filterAndSortTodos(todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date()))).map((todo) => (
-                <Card key={todo.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-start gap-3">
-                        {completeLoading[todo.id] ? (
-                          <div className="mt-1 h-4 w-4 flex items-center justify-center">
-                            <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                          </div>
-                        ) : (
-                          <Checkbox
-                            checked={todo.completed}
-                            onCheckedChange={() => toggleComplete(todo)}
-                            className="mt-1"
-                            aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-lg">
-                            {todo.title}
-                          </CardTitle>
-                          {todo.description && (
-                            <CardDescription className="mt-1">{todo.description}</CardDescription>
-                          )}
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            <Badge variant="outline" className={priorityColors[todo.priority]}>
-                              {todo.priority}
-                            </Badge>
-                            {todo.category && (
-                              <Badge variant="outline">{todo.category}</Badge>
-                            )}
-                            {todo.due_date && (
-                              <Badge variant="outline" className="gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
-                              </Badge>
-                            )}
-                            {todo.estimated_duration_minutes && (
-                              <Badge variant="outline" className="gap-1">
-                                <Clock className="h-3 w-3" />
-                                {todo.estimated_duration_minutes}m
-                              </Badge>
-                            )}
-                          </div>
-                          {todo.tags && todo.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {todo.tags.slice(0, 3).map((tag, idx) => (
-                                <span key={idx} className="text-xs text-muted-foreground">#{tag}</span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2 pt-2 border-t">
-                        <Button
-                          onClick={() => openEditDialog(todo)}
-                          size="sm"
-                          variant="ghost"
-                          className="flex-1"
-                          aria-label={`Edit tugas ${todo.title}`}
-                        >
-                          <Edit className="h-4 w-4 mr-1" aria-hidden="true" />
-                          <span className="text-xs">Edit</span>
-                        </Button>
-                        <Button
-                          onClick={() => rollbackTodo(todo)}
-                          size="sm"
-                          variant="ghost"
-                          className="flex-1"
-                          aria-label={`Kembali ke versi sebelumnya dari tugas ${todo.title}`}
-                          loading={rollbackLoading[todo.id]}
-                        >
-                          {!rollbackLoading[todo.id] && (
-                            <>
-                              <Undo2 className="h-4 w-4 mr-1" aria-hidden="true" />
-                              <span className="text-xs">Versi</span>
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          onClick={() => deleteTodo(todo.id)}
-                          size="sm"
-                          variant="ghost"
-                          className="flex-1 text-destructive hover:text-destructive"
-                          aria-label={`Hapus tugas ${todo.title}`}
-                          loading={deleteLoading[todo.id]}
-                        >
-                          {!deleteLoading[todo.id] && (
-                            <>
-                              <Trash2 className="h-4 w-4 mr-1" aria-hidden="true" />
-                              <span className="text-xs">Hapus</span>
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                </Card>
-              ))
-            )}
-          </TabsContent>
-
-          {/* Overdue Todos Tab */}
-          <TabsContent value="overdue" className="space-y-3">
-            {filterAndSortTodos(todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date())).length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">
-                    {todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date()).length === 0
-                      ? "Aman! Gak ada tugas yang lewat deadline."
-                      : "Gak ada tugas telat yang sesuai filter."}
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              filterAndSortTodos(todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date())).map((todo) => (
-                <Card key={todo.id} className="hover:shadow-md transition-shadow border-red-200 bg-red-50/10">
-                  <CardHeader className="pb-3">
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-start gap-3">
-                        {completeLoading[todo.id] ? (
-                          <div className="mt-1 h-4 w-4 flex items-center justify-center">
-                            <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                          </div>
-                        ) : (
-                          <Checkbox
-                            checked={todo.completed}
-                            onCheckedChange={() => toggleComplete(todo)}
-                            className="mt-1"
-                            aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-lg text-red-600">
-                            {todo.title}
-                          </CardTitle>
-                          {todo.description && (
-                            <CardDescription className="mt-1">{todo.description}</CardDescription>
-                          )}
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            <Badge variant="outline" className={priorityColors[todo.priority]}>
-                              {todo.priority}
-                            </Badge>
-                            {todo.category && (
-                              <Badge variant="outline">{todo.category}</Badge>
-                            )}
-                            {todo.due_date && (
-                              <Badge variant="destructive" className="gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 pt-2 border-t">
-                        <Button
-                          onClick={() => openEditDialog(todo)}
-                          size="sm"
-                          variant="ghost"
-                          className="flex-1"
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          <span className="text-xs">Edit</span>
-                        </Button>
-                        <Button
-                          onClick={() => deleteTodo(todo.id)}
-                          size="sm"
-                          variant="ghost"
-                          className="flex-1 text-destructive hover:text-destructive"
-                          loading={deleteLoading[todo.id]}
-                        >
-                          {!deleteLoading[todo.id] && (
-                            <>
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              <span className="text-xs">Hapus</span>
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                </Card>
-              ))
-            )}
-          </TabsContent>
-
-          {/* Completed Todos Tab */}
-          <TabsContent value="completed" className="space-y-3">
-            {filterAndSortTodos(todos.filter(t => t.completed)).length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">
-                    {todos.filter(t => t.completed).length === 0
-                      ? "Belum ada tugas yang selesai. Ayo semangat!"
-                      : "Gak ada tugas selesai yang sesuai filter. Coba ubah filter-nya!"}
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              filterAndSortTodos(todos.filter(t => t.completed)).map((todo) => (
-                <Card key={todo.id} className="hover:shadow-md transition-shadow bg-secondary/20">
-                  <CardHeader className="pb-3">
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-start gap-3">
-                        {completeLoading[todo.id] ? (
-                          <div className="mt-1 h-4 w-4 flex items-center justify-center">
-                            <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                          </div>
-                        ) : (
-                          <Checkbox
-                            checked={todo.completed}
-                            onCheckedChange={() => toggleComplete(todo)}
-                            className="mt-1"
-                            aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-lg line-through text-muted-foreground">
-                            {todo.title}
-                          </CardTitle>
-                          {todo.description && (
-                            <CardDescription className="mt-1">{todo.description}</CardDescription>
-                          )}
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            <Badge variant="outline" className={priorityColors[todo.priority]}>
-                              {todo.priority}
-                            </Badge>
-                            {todo.category && (
-                              <Badge variant="outline">{todo.category}</Badge>
-                            )}
-                            {todo.due_date && (
-                              <Badge variant="outline" className="gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
-                              </Badge>
-                            )}
-                            {todo.estimated_duration_minutes && (
-                              <Badge variant="outline" className="gap-1">
-                                <Clock className="h-3 w-3" />
-                                {todo.estimated_duration_minutes}m
-                              </Badge>
-                            )}
-                          </div>
-                          {todo.tags && todo.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {todo.tags.slice(0, 3).map((tag, idx) => (
-                                <span key={idx} className="text-xs text-muted-foreground">#{tag}</span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex justify-end pt-2 border-t">
-                        <Button
-                          onClick={() => deleteTodo(todo.id)}
-                          size="sm"
-                          variant="ghost"
-                          className="text-destructive hover:text-destructive"
-                          aria-label={`Hapus tugas ${todo.title}`}
-                          loading={deleteLoading[todo.id]}
-                        >
-                          {!deleteLoading[todo.id] && (
-                            <>
-                              <Trash2 className="h-4 w-4 mr-1" aria-hidden="true" />
-                              <span className="text-xs">Hapus</span>
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                </Card>
-              ))
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
-      {summaryOpen && dailyData && (
-        <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
-          <DialogContent className="max-h-[80vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle>Ringkasan Harian</DialogTitle>
-              <DialogDescription>Rangkuman tugas dan rekomendasi</DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto p-4 border rounded-md">
-              <div className="space-y-3 pb-4">
-                <div>
-                  <Label>Urgent</Label>
-                  <div className="mt-2 space-y-1">{(dailyData.urgent || []).map((u: any, i: number) => (<div key={i} className="text-red-500">• {u.title}</div>))}</div>
-                </div>
-                <div>
-                  <Label>Hari Ini</Label>
-                  <div className="mt-2 space-y-1">{(dailyData.today_list || []).map((t: any, i: number) => (<div key={i}>• {t.title}</div>))}</div>
-                </div>
-                <div>
-                  <Label>Progres</Label>
-                  <div className="mt-1 text-muted-foreground">{dailyData.progress_summary}</div>
-                </div>
-                <div>
-                  <Label>Rekomendasi</Label>
-                  <div className="mt-2 space-y-1">{(dailyData.recommendations || []).map((r: any, i: number) => (<div key={i}>• {r}</div>))}</div>
-                </div>
-              </div>
             </div>
-          </DialogContent>
-        </Dialog>
-      )}
-      {anomalyOpen && anomalyData && (
-        <Dialog open={anomalyOpen} onOpenChange={setAnomalyOpen}>
-          <DialogContent className="max-h-[80vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle>Insight Perilaku Tugas</DialogTitle>
-              <DialogDescription>Analisis pola dan anomali dari aktivitas tugas</DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto p-4 border rounded-md">
-              <div className="space-y-3 pb-4">
-                <div>
-                  <Label>Insights</Label>
-                  <div className="mt-2 space-y-1">
-                    {(anomalyData.insights || []).map((insight: string, i: number) => (
-                      <div key={i} className="text-sm">• {insight}</div>
-                    ))}
-                  </div>
+
+            {/* Search Bar - Full Width on Mobile */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex-1 flex gap-2 items-center">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <TextInput
+                    placeholder="Cari tugas... (real-time)"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 h-9"
+                    aria-label="Cari tugas"
+                  />
                 </div>
-                {anomalyData.recommendations && anomalyData.recommendations.length > 0 && (
-                  <div>
-                    <Label>Rekomendasi</Label>
-                    <div className="mt-2 space-y-1">
-                      {anomalyData.recommendations.map((rec: string, i: number) => (
-                        <div key={i} className="text-sm text-muted-foreground">• {rec}</div>
-                      ))}
-                    </div>
+                {searchLoading && (
+                  <div className="flex items-center">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   </div>
                 )}
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-      <Footer />
 
-      {/* Mobile Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-t border-border sm:hidden transition-transform duration-300">
-        <div className="grid grid-cols-3 h-16">
-          <button
-            onClick={() => setActiveTab('active')}
-            className={cn(
-              "flex flex-col items-center justify-center gap-1 transition-colors",
-              activeTab === 'active' ? "text-primary bg-primary/5" : "text-muted-foreground hover:bg-secondary/50"
-            )}
-          >
-            <div className={cn("rounded-full p-1", activeTab === 'active' ? "bg-primary/10" : "bg-transparent")}>
-              <div className="relative">
-                <ListTodo className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-blue-500 text-[8px] font-bold text-white">
-                  {todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length}
-                </span>
+              {/* AI Features - Horizontal Scroll on Mobile */}
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                <Button
+                  onClick={runDailySummary}
+                  variant="outline"
+                  size="sm"
+                  className="whitespace-nowrap"
+                  aria-label="Lihat ringkasan harian"
+                  loading={summaryLoading}
+                >
+                  {summaryLoading ? 'Tunggu...' : 'Ringkasan'}
+                </Button>
+                <Button
+                  onClick={runAnomalyDetection}
+                  variant="outline"
+                  size="sm"
+                  className="whitespace-nowrap"
+                  aria-label="Deteksi anomali tugas"
+                  loading={anomalyLoading}
+                >
+                  {anomalyLoading ? 'Analisis...' : 'Anomali'}
+                </Button>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9 border-dashed whitespace-nowrap">
+                      <ListFilter className="mr-2 h-4 w-4" />
+                      Filter & Urutkan
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-4" align="start">
+                    <div className="grid gap-4">
+                      <div className="space-y-2">
+                        <h4 className="font-medium leading-none">Filter Tugas</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Atur tampilan tugas sesuai kebutuhan.
+                        </p>
+                      </div>
+                      <div className="grid gap-2">
+                        <Select value={filterPriority} onValueChange={(value: any) => setFilterPriority(value)}>
+                          <SelectTrigger className="w-full" aria-label="Filter berdasarkan prioritas">
+                            <SelectValue placeholder="Prioritas" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Semua Prioritas</SelectItem>
+                            <SelectItem value="high">Penting Banget</SelectItem>
+                            <SelectItem value="medium">Biasa Aja</SelectItem>
+                            <SelectItem value="low">Santai</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Select value={filterCategory} onValueChange={setFilterCategory}>
+                          <SelectTrigger className="w-full" aria-label="Filter berdasarkan kategori">
+                            <SelectValue placeholder="Kategori" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Semua Kategori</SelectItem>
+                            {uniqueCategories.map((cat) => (
+                              <SelectItem key={cat} value={cat!}>{cat}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Select value={filterDateRange} onValueChange={(value: any) => setFilterDateRange(value)}>
+                          <SelectTrigger className="w-full" aria-label="Filter berdasarkan deadline">
+                            <SelectValue placeholder="Deadline" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Semua Deadline</SelectItem>
+                            <SelectItem value="overdue">Telat</SelectItem>
+                            <SelectItem value="today">Hari Ini</SelectItem>
+                            <SelectItem value="week">Minggu Ini</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Select value={filterTag} onValueChange={setFilterTag}>
+                          <SelectTrigger className="w-full" aria-label="Filter berdasarkan tag">
+                            <SelectValue placeholder="Tag" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Semua Tag</SelectItem>
+                            {uniqueTags.map((tag) => (
+                              <SelectItem key={tag} value={tag}>#{tag}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                          <SelectTrigger className="w-full bg-secondary/20 border-primary/20" aria-label="Urutkan tugas berdasarkan">
+                            <ArrowUpDown className="h-4 w-4 mr-2 text-primary" aria-hidden="true" />
+                            <SelectValue placeholder="Urutkan" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="urgency">Urgensi (Default)</SelectItem>
+                            <SelectItem value="priority">Prioritas</SelectItem>
+                            <SelectItem value="due_date">Tanggal Deadline</SelectItem>
+                            <SelectItem value="created_at">Tanggal Dibuat</SelectItem>
+                            <SelectItem value="title">Judul (A-Z)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
-            <span className="text-[10px] font-medium">Belum Beres</span>
-          </button>
 
-          <button
-            onClick={() => setActiveTab('overdue')}
-            className={cn(
-              "flex flex-col items-center justify-center gap-1 transition-colors",
-              activeTab === 'overdue' ? "text-red-500 bg-red-50" : "text-muted-foreground hover:bg-secondary/50"
-            )}
-          >
-            <div className={cn("rounded-full p-1", activeTab === 'overdue' ? "bg-red-100" : "bg-transparent")}>
-              <div className="relative">
-                <Clock className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white">
-                  {todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date()).length}
-                </span>
-              </div>
-            </div>
-            <span className="text-[10px] font-medium">Lewat Deadline</span>
-          </button>
+            {/* Filter Section */}
+            {/* Filter & Sort Section */}
 
-          <button
-            onClick={() => setActiveTab('completed')}
-            className={cn(
-              "flex flex-col items-center justify-center gap-1 transition-colors",
-              activeTab === 'completed' ? "text-green-600 bg-green-50" : "text-muted-foreground hover:bg-secondary/50"
-            )}
-          >
-            <div className={cn("rounded-full p-1", activeTab === 'completed' ? "bg-green-100" : "bg-transparent")}>
-              <div className="relative">
-                <CheckCircle2 className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-green-500 text-[8px] font-bold text-white">
-                  {todos.filter(t => t.completed).length}
-                </span>
+            {/* Filter & Sort Section */}
+
+
+            {/* <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+               ... (Previous implementation)
+            </div> */}
+          </header>
+
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                onClick={openNewDialog}
+                className="w-full mb-6 hidden md:flex"
+                size="lg"
+                aria-label="Tambah tugas baru"
+              >
+                <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+                <span className="truncate">Tambah Tugas Baru</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="w-full h-[100dvh] sm:h-auto sm:max-w-lg p-0 gap-0 rounded-none sm:rounded-lg overflow-hidden">
+              <form onSubmit={handleSubmit} className="flex flex-col h-full w-full">
+                <div className="p-6 pb-2">
+                  <DialogHeader>
+                    <DialogTitle>{editingTodo ? 'Edit Tugas' : 'Bikin Tugas Baru'}</DialogTitle>
+                    <DialogDescription>
+                      {editingTodo ? 'Update detail tugas lo di bawah ini.' : 'Tambahin tugas baru ke list lo.'}
+                    </DialogDescription>
+                  </DialogHeader>
+                </div>
+
+                <ScrollArea className="flex-1 w-full">
+                  <div className="p-6 pt-2 space-y-6">
+                    {/* AI Section */}
+                    <div className="space-y-3 pb-4 border-b">
+                      <div className="space-y-2">
+                        <Label>Deskripsi Bahasa Alami</Label>
+                        <Input
+                          placeholder="contoh: besok pagi kirim laporan ke klien"
+                          value={nlInput}
+                          onChange={(e) => setNlInput(e.target.value)}
+                          className="border-border focus-visible:ring-0 focus-visible:border-primary/50"
+                        />
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Button
+                          onClick={applyAIAssist}
+                          variant="secondary"
+                          type="button"
+                          loading={aiLoading}
+                          className="w-full sm:w-auto bg-primary/10 hover:bg-primary/20 text-primary transition-all duration-300 transform hover:scale-105"
+                        >
+                          {aiLoading ? 'Lagi mikir...' : 'Gas Analisis AI'}
+                        </Button>
+                        {typeof aiHints?.estimatedMinutes === 'number' && (
+                          <Badge variant="outline" className="justify-center sm:justify-start bg-primary/5 border-primary/20 text-primary py-2 sm:py-0">Estimasi: {aiHints?.estimatedMinutes} menit</Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Manual Inputs */}
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="title">Judul Tugas</Label>
+                        <Input
+                          id="title"
+                          placeholder="Mau ngapain hari ini?"
+                          value={formData.title}
+                          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="description">Deskripsi</Label>
+                        <Textarea
+                          id="description"
+                          placeholder="Kasih detail dikit..."
+                          value={formData.description}
+                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                          rows={3}
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="priority">Seberapa Penting?</Label>
+                          <Select
+                            value={formData.priority}
+                            onValueChange={(value: 'low' | 'medium' | 'high') =>
+                              setFormData({ ...formData, priority: value })
+                            }
+                          >
+                            <SelectTrigger id="priority">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent z-index={150}>
+                              <SelectItem value="low">Santai</SelectItem>
+                              <SelectItem value="medium">Biasa Aja</SelectItem>
+                              <SelectItem value="high">Penting Banget</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="category">Kategori</Label>
+                          <Input
+                            id="category"
+                            placeholder="misal: Kerjaan, Pribadi"
+                            value={formData.category}
+                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Tanggal & Jam Jatuh Tempo (Opsional)</Label>
+                        <Popover modal={true}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !formData.due_date && "text-muted-foreground"
+                              )}
+                            >
+                              <Calendar className="mr-2 h-4 w-4" />
+                              {formData.due_date ? format(formData.due_date, "PPP 'pukul' HH:mm", { locale: idLocale }) : "Pilih tanggal & jam"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={formData.due_date || undefined}
+                              onSelect={(date) => setFormData({ ...formData, due_date: date || null })}
+                              initialFocus
+                            />
+                            <div className="p-3 border-t border-border">
+                              <Label className="text-sm mb-2 block">Jam</Label>
+                              <div className="flex gap-2 items-center">
+                                <Select
+                                  value={formData.due_date ? formData.due_date.getHours().toString() : undefined}
+                                  onValueChange={(value) => {
+                                    const hours = parseInt(value);
+                                    const newDate = formData.due_date ? new Date(formData.due_date) : new Date();
+                                    newDate.setHours(hours);
+                                    setFormData({ ...formData, due_date: newDate });
+                                  }}
+                                >
+                                  <SelectTrigger className="w-[70px]">
+                                    <SelectValue placeholder="HH" />
+                                  </SelectTrigger>
+                                  <SelectContent position="popper" className="max-h-[200px]">
+                                    {Array.from({ length: 24 }).map((_, i) => (
+                                      <SelectItem key={i} value={i.toString()}>
+                                        {i.toString().padStart(2, '0')}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <span className="text-muted-foreground">:</span>
+                                <Select
+                                  value={formData.due_date ? formData.due_date.getMinutes().toString() : undefined}
+                                  onValueChange={(value) => {
+                                    const minutes = parseInt(value);
+                                    const newDate = formData.due_date ? new Date(formData.due_date) : new Date();
+                                    newDate.setMinutes(minutes);
+                                    setFormData({ ...formData, due_date: newDate });
+                                  }}
+                                >
+                                  <SelectTrigger className="w-[70px]">
+                                    <SelectValue placeholder="MM" />
+                                  </SelectTrigger>
+                                  <SelectContent position="popper" className="max-h-[200px]">
+                                    {Array.from({ length: 60 }).map((_, i) => (
+                                      <SelectItem key={i} value={i.toString()}>
+                                        {i.toString().padStart(2, '0')}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                  </div>
+                </ScrollArea>
+
+                <div className="p-6 pt-4 border-t bg-background">
+                  <Button type="submit" className="w-full" loading={submitLoading}>
+                    {submitLoading ? 'Tunggu bentar yak...' : editingTodo ? 'Update Tugas' : 'Simpan Tugas'}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Todo List with Tabs */}
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'active' | 'completed')} className="w-full">
+            <TabsList className="flex w-full h-auto p-0 bg-transparent gap-2 sm:gap-4 border-b rounded-none mb-6 justify-start overflow-x-auto no-scrollbar sm:justify-start" aria-label="Filter tugas berdasarkan status">
+              <TabsTrigger
+                value="active"
+                className="flex-1 sm:flex-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-primary data-[state=active]:font-bold border-b-2 border-transparent rounded-none px-2 py-3 transition-none"
+                aria-label={`Tugas belum selesai, ${todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length} tugas`}
+              >
+                Belum Beres ({todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length})
+              </TabsTrigger>
+              <TabsTrigger
+                value="overdue"
+                className="flex-1 sm:flex-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-red-500 data-[state=active]:text-red-600 data-[state=active]:font-bold border-b-2 border-transparent rounded-none px-2 py-3 transition-none text-red-500/80"
+                aria-label="Tugas lewat deadline"
+              >
+                Lewat Deadline ({todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date()).length})
+              </TabsTrigger>
+              <TabsTrigger
+                value="completed"
+                className="flex-1 sm:flex-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-primary data-[state=active]:font-bold border-b-2 border-transparent rounded-none px-2 py-3 transition-none"
+                aria-label={`Tugas sudah selesai, ${todos.filter(t => t.completed).length} tugas`}
+              >
+                Udah Beres ({todos.filter(t => t.completed).length})
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Active Todos Tab */}
+            <TabsContent value="active" className="space-y-3">
+              {filterAndSortTodos(todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date()))).length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">
+                      {todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length === 0
+                        ? "Tidak ada tugas yang aktif saat ini. Cek tab 'Lewat Deadline' juga ya!"
+                        : "Gak ada tugas yang sesuai filter. Coba ubah filter-nya!"}
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                filterAndSortTodos(todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date()))).map((todo) => (
+                  <Card key={todo.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-start gap-3">
+                          {completeLoading[todo.id] ? (
+                            <div className="mt-1 h-4 w-4 flex items-center justify-center">
+                              <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                            </div>
+                          ) : (
+                            <Checkbox
+                              checked={todo.completed}
+                              onCheckedChange={() => toggleComplete(todo)}
+                              className="mt-1"
+                              aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-lg">
+                              {todo.title}
+                            </CardTitle>
+                            {todo.description && (
+                              <CardDescription className="mt-1">{todo.description}</CardDescription>
+                            )}
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <Badge variant="outline" className={priorityColors[todo.priority]}>
+                                {todo.priority}
+                              </Badge>
+                              {todo.category && (
+                                <Badge variant="outline">{todo.category}</Badge>
+                              )}
+                              {todo.due_date && (
+                                <Badge variant="outline" className="gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
+                                </Badge>
+                              )}
+                              {todo.estimated_duration_minutes && (
+                                <Badge variant="outline" className="gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {todo.estimated_duration_minutes}m
+                                </Badge>
+                              )}
+                            </div>
+                            {todo.tags && todo.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {todo.tags.slice(0, 3).map((tag, idx) => (
+                                  <span key={idx} className="text-xs text-muted-foreground">#{tag}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-2 border-t">
+                          <Button
+                            onClick={() => openEditDialog(todo)}
+                            size="sm"
+                            variant="ghost"
+                            className="flex-1"
+                            aria-label={`Edit tugas ${todo.title}`}
+                          >
+                            <Edit className="h-4 w-4 mr-1" aria-hidden="true" />
+                            <span className="text-xs">Edit</span>
+                          </Button>
+                          <Button
+                            onClick={() => rollbackTodo(todo)}
+                            size="sm"
+                            variant="ghost"
+                            className="flex-1"
+                            aria-label={`Kembali ke versi sebelumnya dari tugas ${todo.title}`}
+                            loading={rollbackLoading[todo.id]}
+                          >
+                            {!rollbackLoading[todo.id] && (
+                              <>
+                                <Undo2 className="h-4 w-4 mr-1" aria-hidden="true" />
+                                <span className="text-xs">Versi</span>
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            onClick={() => deleteTodo(todo.id)}
+                            size="sm"
+                            variant="ghost"
+                            className="flex-1 text-destructive hover:text-destructive"
+                            aria-label={`Hapus tugas ${todo.title}`}
+                            loading={deleteLoading[todo.id]}
+                          >
+                            {!deleteLoading[todo.id] && (
+                              <>
+                                <Trash2 className="h-4 w-4 mr-1" aria-hidden="true" />
+                                <span className="text-xs">Hapus</span>
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                ))
+              )}
+            </TabsContent>
+
+            {/* Overdue Todos Tab */}
+            <TabsContent value="overdue" className="space-y-3">
+              {filterAndSortTodos(todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date())).length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">
+                      {todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date()).length === 0
+                        ? "Aman! Gak ada tugas yang lewat deadline."
+                        : "Gak ada tugas telat yang sesuai filter."}
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                filterAndSortTodos(todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date())).map((todo) => (
+                  <Card key={todo.id} className="hover:shadow-md transition-shadow border-red-200 bg-red-50/10">
+                    <CardHeader className="pb-3">
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-start gap-3">
+                          {completeLoading[todo.id] ? (
+                            <div className="mt-1 h-4 w-4 flex items-center justify-center">
+                              <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                            </div>
+                          ) : (
+                            <Checkbox
+                              checked={todo.completed}
+                              onCheckedChange={() => toggleComplete(todo)}
+                              className="mt-1"
+                              aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-lg text-red-600">
+                              {todo.title}
+                            </CardTitle>
+                            {todo.description && (
+                              <CardDescription className="mt-1">{todo.description}</CardDescription>
+                            )}
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <Badge variant="outline" className={priorityColors[todo.priority]}>
+                                {todo.priority}
+                              </Badge>
+                              {todo.category && (
+                                <Badge variant="outline">{todo.category}</Badge>
+                              )}
+                              {todo.due_date && (
+                                <Badge variant="destructive" className="gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-2 border-t">
+                          <Button
+                            onClick={() => openEditDialog(todo)}
+                            size="sm"
+                            variant="ghost"
+                            className="flex-1"
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            <span className="text-xs">Edit</span>
+                          </Button>
+                          <Button
+                            onClick={() => deleteTodo(todo.id)}
+                            size="sm"
+                            variant="ghost"
+                            className="flex-1 text-destructive hover:text-destructive"
+                            loading={deleteLoading[todo.id]}
+                          >
+                            {!deleteLoading[todo.id] && (
+                              <>
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                <span className="text-xs">Hapus</span>
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                ))
+              )}
+            </TabsContent>
+
+            {/* Completed Todos Tab */}
+            <TabsContent value="completed" className="space-y-3">
+              {filterAndSortTodos(todos.filter(t => t.completed)).length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">
+                      {todos.filter(t => t.completed).length === 0
+                        ? "Belum ada tugas yang selesai. Ayo semangat!"
+                        : "Gak ada tugas selesai yang sesuai filter. Coba ubah filter-nya!"}
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                filterAndSortTodos(todos.filter(t => t.completed)).map((todo) => (
+                  <Card key={todo.id} className="hover:shadow-md transition-shadow bg-secondary/20">
+                    <CardHeader className="pb-3">
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-start gap-3">
+                          {completeLoading[todo.id] ? (
+                            <div className="mt-1 h-4 w-4 flex items-center justify-center">
+                              <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                            </div>
+                          ) : (
+                            <Checkbox
+                              checked={todo.completed}
+                              onCheckedChange={() => toggleComplete(todo)}
+                              className="mt-1"
+                              aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-lg line-through text-muted-foreground">
+                              {todo.title}
+                            </CardTitle>
+                            {todo.description && (
+                              <CardDescription className="mt-1">{todo.description}</CardDescription>
+                            )}
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <Badge variant="outline" className={priorityColors[todo.priority]}>
+                                {todo.priority}
+                              </Badge>
+                              {todo.category && (
+                                <Badge variant="outline">{todo.category}</Badge>
+                              )}
+                              {todo.due_date && (
+                                <Badge variant="outline" className="gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
+                                </Badge>
+                              )}
+                              {todo.estimated_duration_minutes && (
+                                <Badge variant="outline" className="gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {todo.estimated_duration_minutes}m
+                                </Badge>
+                              )}
+                            </div>
+                            {todo.tags && todo.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {todo.tags.slice(0, 3).map((tag, idx) => (
+                                  <span key={idx} className="text-xs text-muted-foreground">#{tag}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex justify-end pt-2 border-t">
+                          <Button
+                            onClick={() => deleteTodo(todo.id)}
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            aria-label={`Hapus tugas ${todo.title}`}
+                            loading={deleteLoading[todo.id]}
+                          >
+                            {!deleteLoading[todo.id] && (
+                              <>
+                                <Trash2 className="h-4 w-4 mr-1" aria-hidden="true" />
+                                <span className="text-xs">Hapus</span>
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                ))
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
+        {summaryOpen && dailyData && (
+          <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
+            <DialogContent className="max-h-[80vh] flex flex-col">
+              <DialogHeader>
+                <DialogTitle>Ringkasan Harian</DialogTitle>
+                <DialogDescription>Rangkuman tugas dan rekomendasi</DialogDescription>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto p-4 border rounded-md">
+                <div className="space-y-3 pb-4">
+                  <div>
+                    <Label>Urgent</Label>
+                    <div className="mt-2 space-y-1">{(dailyData.urgent || []).map((u: any, i: number) => (<div key={i} className="text-red-500">• {u.title}</div>))}</div>
+                  </div>
+                  <div>
+                    <Label>Hari Ini</Label>
+                    <div className="mt-2 space-y-1">{(dailyData.today_list || []).map((t: any, i: number) => (<div key={i}>• {t.title}</div>))}</div>
+                  </div>
+                  <div>
+                    <Label>Progres</Label>
+                    <div className="mt-1 text-muted-foreground">{dailyData.progress_summary}</div>
+                  </div>
+                  <div>
+                    <Label>Rekomendasi</Label>
+                    <div className="mt-2 space-y-1">{(dailyData.recommendations || []).map((r: any, i: number) => (<div key={i}>• {r}</div>))}</div>
+                  </div>
+                </div>
               </div>
-            </div>
-            <span className="text-[10px] font-medium">Udah Beres</span>
-          </button>
+            </DialogContent>
+          </Dialog>
+        )}
+        {anomalyOpen && anomalyData && (
+          <Dialog open={anomalyOpen} onOpenChange={setAnomalyOpen}>
+            <DialogContent className="max-h-[80vh] flex flex-col">
+              <DialogHeader>
+                <DialogTitle>Insight Perilaku Tugas</DialogTitle>
+                <DialogDescription>Analisis pola dan anomali dari aktivitas tugas</DialogDescription>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto p-4 border rounded-md">
+                <div className="space-y-3 pb-4">
+                  <div>
+                    <Label>Insights</Label>
+                    <div className="mt-2 space-y-1">
+                      {(anomalyData.insights || []).map((insight: string, i: number) => (
+                        <div key={i} className="text-sm">• {insight}</div>
+                      ))}
+                    </div>
+                  </div>
+                  {anomalyData.recommendations && anomalyData.recommendations.length > 0 && (
+                    <div>
+                      <Label>Rekomendasi</Label>
+                      <div className="mt-2 space-y-1">
+                        {anomalyData.recommendations.map((rec: string, i: number) => (
+                          <div key={i} className="text-sm text-muted-foreground">• {rec}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+        {/* Footer hidden on mobile because we have BottomNav menu */}
+        <div className="hidden md:block">
+          <Footer />
         </div>
       </div>
-    </div>
+    </MobileLayout>
   );
 }

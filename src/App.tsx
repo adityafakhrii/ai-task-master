@@ -13,6 +13,7 @@ import TermsOfService from "./pages/TermsOfService";
 import Changelog from "./pages/Changelog";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
+import Menu from "./pages/Menu";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/changelog" element={<Changelog />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/menu" element={<Menu />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
