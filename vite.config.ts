@@ -19,23 +19,23 @@ export default defineConfig({
         background_color: '#ffffff',
         icons: [
           {
-            src: 'catetyuk2.png',
+            src: 'CatetYuk3.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: 'catetyuk2.png',
+            src: 'CatetYuk3.png',
             sizes: '512x512',
             type: 'image/png'
           },
           {
-            src: 'catetyuk2.png',
+            src: 'CatetYuk3.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable' // Add a maskable icon for adaptive icons on Android
           },
           {
-            src: 'catetyuk2.png',
+            src: 'CatetYuk3.png',
             sizes: '1024x1024',
             type: 'image/png' // Add a larger icon for higher resolution screens
           }
