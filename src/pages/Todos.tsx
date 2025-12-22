@@ -720,8 +720,8 @@ export default function Todos() {
                 <span className="truncate">Tambah Tugas Baru</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="w-full h-[100dvh] sm:h-auto sm:max-w-lg p-0 gap-0 rounded-none sm:rounded-lg overflow-hidden">
-              <form onSubmit={handleSubmit} className="flex flex-col h-full w-full">
+            <DialogContent className="w-full h-[100dvh] sm:h-auto sm:max-h-[85vh] sm:max-w-lg p-0 gap-0 rounded-none sm:rounded-lg overflow-hidden flex flex-col">
+              <form onSubmit={handleSubmit} className="flex flex-col h-full w-full overflow-hidden">
                 <div className="p-6 pb-2">
                   <DialogHeader>
                     <DialogTitle>{editingTodo ? 'Edit Tugas' : 'Bikin Tugas Baru'}</DialogTitle>
