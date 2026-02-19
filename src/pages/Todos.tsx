@@ -520,6 +520,10 @@ export default function Todos() {
     high: 'bg-red-500/10 text-red-500 border-red-500/20'
   };
 
+  const completedTodos = filterAndSortTodos(todos.filter(t => t.completed)).sort((a, b) => {
+    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+  });
+
   if (todosLoading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -1125,7 +1129,7 @@ export default function Todos() {
 
             {/* Completed Todos Tab */}
             <TabsContent value="completed" className="space-y-3">
-              {filterAndSortTodos(todos.filter(t => t.completed)).length === 0 ? (
+              {completedTodos.length === 0 ? (
                 <Card>
                   <CardContent className="py-12 text-center">
                     <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -1137,7 +1141,7 @@ export default function Todos() {
                   </CardContent>
                 </Card>
               ) : (
-                filterAndSortTodos(todos.filter(t => t.completed)).map((todo) => (
+                completedTodos.map((todo) => (
                   <Card key={todo.id} className="hover:shadow-md transition-shadow bg-secondary/20">
                     <CardHeader className="pb-3">
                       <div className="flex flex-col gap-3">
@@ -1188,6 +1192,9 @@ export default function Todos() {
                                 ))}
                               </div>
                             )}
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              Selesai {format(new Date(todo.updated_at), "dd MMM yyyy, HH:mm", { locale: idLocale })}
+                            </p>
                           </div>
                         </div>
                         <div className="flex justify-end pt-2 border-t">
