@@ -545,7 +545,7 @@ export default function Todos() {
                 <img src="/CatetYuk3.png" alt="CatetYuk Logo" className="h-14 w-14 flex-shrink-0" aria-hidden="true" />
                 <div className="min-w-0">
                   <h1 className="text-2xl sm:text-3xl font-bold leading-tight">CatetYuk</h1>
-                  <p className="text-xs text-muted-foreground">simplify your task</p>
+                  <p className="text-xs text-muted-foreground">Simplify your task</p>
                 </div>
               </div>
 

@@ -37,7 +37,7 @@ const Index = () => {
             CatetYuk
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground max-w-lg mx-auto font-light">
-            simplify your task.
+            Simplify your task.
           </p>
 
 

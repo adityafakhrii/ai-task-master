@@ -1,4 +1,4 @@
-# CatetYuk - simplify your task
+# CatetYuk - Simplify your task
 
 CatetYuk is an intelligent todo list application designed to simplify your task management using the power of AI. Built with modern web technologies, it offers a seamless and smart experience for organizing your daily activities.
 

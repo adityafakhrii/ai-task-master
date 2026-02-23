@@ -12,7 +12,7 @@ export default defineConfig({
       manifest: {
         name: 'CatetYuk',
         short_name: 'CatetYuk',
-        description: 'CatetYuk - simplify your task',
+        description: 'CatetYuk - Simplify your task',
         theme_color: '#ffffff',
         start_url: '/',
         display: 'standalone',
