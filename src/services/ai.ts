@@ -26,7 +26,7 @@ export async function dailySummary(tasks: any[]) {
 
 export async function semanticSearch(query: string, tasks: any[]) {
   const { data, error } = await supabase.functions.invoke('ai-parse-task', {
-    body: { 
+    body: {
       text: `Query: ${query}\nTasks: ${JSON.stringify(tasks).slice(0, 8000)}`,
       type: 'search'
     }
@@ -46,6 +46,42 @@ export async function detectAnomaly(history: any[]) {
 
   if (error) {
     throw new Error(error.message || 'Gagal mendeteksi anomali');
+  }
+
+  return data;
+}
+
+export async function rescheduleTasks(tasks: any[]) {
+  const { data, error } = await supabase.functions.invoke('ai-parse-task', {
+    body: { text: JSON.stringify(tasks).slice(0, 8000), type: 'reschedule' }
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Gagal menjadwalkan ulang tugas');
+  }
+
+  return data;
+}
+
+export async function generateAIRoast(overdueTasks: any[]) {
+  const { data, error } = await supabase.functions.invoke('ai-parse-task', {
+    body: { text: JSON.stringify(overdueTasks).slice(0, 8000), type: 'roast' }
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Gagal memanggil AI Roast');
+  }
+
+  return data;
+}
+
+export async function generateThemeSuggestion(tasks: any[]) {
+  const { data, error } = await supabase.functions.invoke('ai-parse-task', {
+    body: { text: JSON.stringify(tasks).slice(0, 8000), type: 'theme_suggest' }
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Gagal merekomendasikan tema');
   }
 
   return data;

@@ -8,25 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import {
-  LogOut,
-  User,
-  Plus,
-  Calendar,
-  Clock,
-  Search,
-  MoreVertical,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  Trash2,
-  Edit,
-  ArrowUpDown,
-  Undo2,
-  ListFilter
-} from 'lucide-react';
+import { Plus, Bell, Calendar, User, LogOut, CheckCircle2, Search, Loader2, Sparkles, AlertCircle, Edit, Trash2, Clock, SparklesIcon, ListFilter, ArrowUpDown, MoreVertical } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -44,10 +27,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
-import { parseTask, dailySummary, semanticSearch, detectAnomaly } from '@/services/ai';
+import { parseTask, dailySummary, detectAnomaly, rescheduleTasks } from '@/services/ai';
 import { Input as TextInput } from '@/components/ui/input';
 import { ToastAction } from '@/components/ui/toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FocusMode } from '@/components/FocusMode';
+import confetti from 'canvas-confetti';
+import { AIPopupRoast } from '@/components/AIPopupRoast';
+import { AIToggleTheme } from '@/components/AIToggleTheme';
 
 interface Todo {
   id: string;
@@ -81,13 +68,14 @@ export default function Todos() {
   });
   const [nlInput, setNlInput] = useState('');
   const [aiHints, setAiHints] = useState<{ recommendedPriority?: 'low' | 'medium' | 'high'; estimatedMinutes?: number | null; suggestions?: { subtasks?: string[]; checklist?: string[]; templates?: string[] } } | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
   const auditLogRef = useRef<Record<string, { snapshot: Todo; timestamp: string; actor: string }[]>>({});
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [dailyData, setDailyData] = useState<any | null>(null);
   const [anomalyOpen, setAnomalyOpen] = useState(false);
   const [anomalyData, setAnomalyData] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'overdue'>('active');
+  const [focusTask, setFocusTask] = useState<Todo | null>(null);
 
   // Filter states
   const [filterPriority, setFilterPriority] = useState<'all' | 'low' | 'medium' | 'high'>('all');
@@ -102,11 +90,10 @@ export default function Todos() {
   const [aiLoading, setAiLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [summaryLoading, setSummaryLoading] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
   const [anomalyLoading, setAnomalyLoading] = useState(false);
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
   const [signOutLoading, setSignOutLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState<Record<string, boolean>>({});
-  const [rollbackLoading, setRollbackLoading] = useState<Record<string, boolean>>({});
   const [completeLoading, setCompleteLoading] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -192,8 +179,8 @@ export default function Todos() {
       });
     }
 
-    // Apply sorting based on sortBy state
-    filtered.sort((a, b) => {
+    // 3. Sorting
+    return filtered.sort((a, b) => {
       switch (sortBy) {
         case 'urgency':
           // Priority order: high > medium > low
@@ -283,6 +270,51 @@ export default function Todos() {
     }
   };
 
+  const startVoiceRecording = () => {
+    // @ts-ignore - SpeechRecognition is not standard across all browsers
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      toast({ variant: 'destructive', title: 'Waduh', description: 'Browser lo gak support fitur suara nih (coba pake Chrome).' });
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'id-ID';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+      toast({ title: 'Lagi dengerin...', description: 'Ngomong aja tugas lo apa' });
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setNlInput(transcript);
+      setIsRecording(false);
+      // Automatically trigger AI assist right after recording
+      setTimeout(() => {
+        // We set input first, but state is async, so we directly parse transcript
+        setNlInput(transcript);
+        const dummyEvent = new Event('submit') as unknown as React.FormEvent;
+        // In a real scenario we might want to manually invoke parseTask here 
+        // but for safety we let the user click the button to confirm the parsed text
+      }, 500);
+    };
+
+    recognition.onerror = (event: any) => {
+      setIsRecording(false);
+      toast({ variant: 'destructive', title: 'Error', description: 'Gagal dengerin suara: ' + event.error });
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognition.start();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title.trim()) return;
@@ -343,35 +375,6 @@ export default function Todos() {
     }
   };
 
-  const rollbackTodo = async (todo: Todo) => {
-    const history = auditLogRef.current[todo.id] || [];
-    const last = history[history.length - 1];
-    if (!last) {
-      toast({ title: 'Belum ada versi sebelumnya' });
-      return;
-    }
-    try {
-      setRollbackLoading(prev => ({ ...prev, [todo.id]: true }));
-      const { error } = await supabase
-        .from('todos')
-        .update({
-          title: last.snapshot.title,
-          description: last.snapshot.description,
-          priority: last.snapshot.priority,
-          category: last.snapshot.category
-        })
-        .eq('id', todo.id);
-      if (error) throw error;
-      auditLogRef.current[todo.id] = history.slice(0, -1);
-      toast({ title: 'Rollback berhasil' });
-      fetchTodos();
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Rollback gagal', description: err.message });
-    } finally {
-      setRollbackLoading(prev => ({ ...prev, [todo.id]: false }));
-    }
-  };
-
   const runDailySummary = async () => {
     try {
       setSummaryLoading(true);
@@ -385,37 +388,82 @@ export default function Todos() {
     }
   };
 
-  const runSemanticSearch = async (query: string) => {
-    if (!query.trim()) {
-      fetchTodos();
-      return;
-    }
+  const handleAutoReschedule = async () => {
+    const overdueTasks = todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date());
+    if (overdueTasks.length === 0) return;
+
     try {
-      setSearchLoading(true);
-      const ranking: string[] = await semanticSearch(query.trim(), todos);
-      const byId = new Map(todos.map(t => [t.id, t]));
-      const ordered = ranking.map(id => byId.get(id)).filter(Boolean) as Todo[];
-      const remainder = todos.filter(t => !ranking.includes(t.id));
-      setTodos([...ordered, ...remainder]);
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Pencarian gagal', description: err.message });
+      setRescheduleLoading(true);
+      const data = overdueTasks.map(t => ({ id: t.id, title: t.title, priority: t.priority }));
+      const response = await rescheduleTasks(data);
+
+      if (response && response.rescheduled_tasks) {
+        let successCount = 0;
+        for (const item of response.rescheduled_tasks) {
+          const { error } = await supabase
+            .from('todos')
+            .update({ due_date: item.suggested_due_date })
+            .eq('id', item.id)
+            .eq('user_id', user!.id);
+
+          if (!error) successCount++;
+        }
+
+        if (successCount > 0) {
+          toast({ title: 'Jadwal Pintar AI', description: `Berhasil mengatur ulang ${successCount} tugas!` });
+          fetchTodos(); // Refresh list
+        }
+      }
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error AI Reschedule', description: error.message });
     } finally {
-      setSearchLoading(false);
+      setRescheduleLoading(false);
     }
   };
 
-  // Real-time search with debouncing
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery.trim()) {
-        runSemanticSearch(searchQuery);
-      } else {
-        fetchTodos();
-      }
-    }, 500);
+  const toggleComplete = async (todo: Todo) => {
+    const updatedStatus = !todo.completed;
 
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+    if (updatedStatus) {
+      const remainingUncompleted = todos.filter(t => !t.completed && t.id !== todo.id).length;
+      if (remainingUncompleted === 0 && todos.length > 0) {
+        confetti({
+          particleCount: 150,
+          spread: 80,
+          origin: { y: 0.5 },
+          colors: ['#f97316', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6']
+        });
+        toast({ title: '🎉 Mantap Jiwa!', description: 'Level keditjayaan: Maksimal! Semua tugas lu beres cuy!' });
+      }
+    }
+
+    // Optimistic update
+    setTodos(prev => prev.map(t =>
+      t.id === todo.id ? { ...t, completed: updatedStatus } : t
+    ));
+
+    try {
+      setCompleteLoading(prev => ({ ...prev, [todo.id]: true }));
+      const { error } = await supabase
+        .from('todos')
+        .update({ completed: updatedStatus })
+        .eq('id', todo.id);
+
+      if (error) {
+        // Revert on error
+        setTodos(prev => prev.map(t =>
+          t.id === todo.id ? { ...t, completed: !updatedStatus } : t
+        ));
+        toast({
+          variant: "destructive",
+          title: "Gagal Update",
+          description: error.message
+        });
+      }
+    } finally {
+      setCompleteLoading(prev => ({ ...prev, [todo.id]: false }));
+    }
+  };
 
   const runAnomalyDetection = async () => {
     try {
@@ -441,27 +489,6 @@ export default function Todos() {
       toast({ variant: 'destructive', title: 'Deteksi gagal', description: err.message });
     } finally {
       setAnomalyLoading(false);
-    }
-  };
-
-  const toggleComplete = async (todo: Todo) => {
-    try {
-      setCompleteLoading(prev => ({ ...prev, [todo.id]: true }));
-      const { error } = await supabase
-        .from('todos')
-        .update({ completed: !todo.completed })
-        .eq('id', todo.id);
-
-      if (error) throw error;
-      fetchTodos();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Waduh Error",
-        description: error.message
-      });
-    } finally {
-      setCompleteLoading(prev => ({ ...prev, [todo.id]: false }));
     }
   };
 
@@ -520,6 +547,19 @@ export default function Todos() {
     high: 'bg-red-500/10 text-red-500 border-red-500/20'
   };
 
+  // Memoize filtered and sorted lists so React correctly redraws them on searchQuery change
+  const activeTodos = filterAndSortTodos(todos.filter(t => {
+    if (t.completed) return false;
+    if (!t.due_date) return true;
+    return new Date(t.due_date) >= new Date();
+  }));
+
+  const overdueTodos = filterAndSortTodos(todos.filter(t => {
+    if (t.completed) return false;
+    if (!t.due_date) return false;
+    return new Date(t.due_date) < new Date();
+  }));
+
   const completedTodos = filterAndSortTodos(todos.filter(t => t.completed)).sort((a, b) => {
     return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
   });
@@ -534,6 +574,7 @@ export default function Todos() {
 
   return (
     <MobileLayout>
+      <AIPopupRoast todos={todos} />
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
         <div className="container mx-auto p-4 pb-24 max-w-4xl">
           {/* Mobile-First Header */}
@@ -549,51 +590,36 @@ export default function Todos() {
                 </div>
               </div>
 
-              {/* User Menu - Mobile Optimized */}
-              <div className="hidden md:flex items-center gap-2">
-                <Button
-                  onClick={() => navigate('/profile')}
-                  variant="ghost"
-                  size="sm"
-                  className="gap-2"
-                  aria-label="Buka profil pengguna"
-                >
-                  <User className="h-4 w-4" aria-hidden="true" />
-                  <span className="hidden sm:inline">{user?.user_metadata.full_name || user?.email?.split('@')[0] || 'Profil'}</span>
-                </Button>
-                <Button
-                  onClick={handleSignOut}
-                  variant="ghost"
-                  size="sm"
-                  aria-label="Keluar dari aplikasi"
-                  loading={signOutLoading}
-                >
-                  <LogOut className="h-4 w-4" aria-hidden="true" />
-                  <span className="sr-only">{signOutLoading ? 'Cabut dulu...' : 'Keluar'}</span>
-                </Button>
+              {/* Theme Toggle & User Menu */}
+              <div className="flex items-center gap-3">
+                <AIToggleTheme todos={activeTodos} />
+                <div className="hidden md:flex items-center gap-2">
+                  <Button
+                    onClick={() => navigate('/profile')}
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2"
+                    aria-label="Buka profil pengguna"
+                  >
+                    <User className="h-4 w-4" aria-hidden="true" />
+                    <span className="hidden sm:inline">{user?.user_metadata.full_name || user?.email?.split('@')[0] || 'Profil'}</span>
+                  </Button>
+                  <Button
+                    onClick={handleSignOut}
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Keluar dari aplikasi"
+                    loading={signOutLoading}
+                  >
+                    <LogOut className="h-4 w-4" aria-hidden="true" />
+                    <span className="sr-only">{signOutLoading ? 'Cabut dulu...' : 'Keluar'}</span>
+                  </Button>
+                </div>
               </div>
             </div>
 
-            {/* Search Bar - Full Width on Mobile */}
+            {/* Search Bar - Removed */}
             <div className="flex flex-col sm:flex-row gap-2">
-              <div className="flex-1 flex gap-2 items-center">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <TextInput
-                    placeholder="Cari tugas... (real-time)"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 h-9"
-                    aria-label="Cari tugas"
-                  />
-                </div>
-                {searchLoading && (
-                  <div className="flex items-center">
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-              </div>
-
               {/* AI Features - Horizontal Scroll on Mobile */}
               <div className="flex gap-2 overflow-x-auto pb-1">
                 <Button
@@ -740,13 +766,25 @@ export default function Todos() {
                     {/* AI Section */}
                     <div className="space-y-3 pb-4 border-b">
                       <div className="space-y-2">
-                        <Label>Deskripsi Bahasa Alami</Label>
-                        <Input
-                          placeholder="contoh: besok pagi kirim laporan ke klien"
-                          value={nlInput}
-                          onChange={(e) => setNlInput(e.target.value)}
-                          className="border-border focus-visible:ring-0 focus-visible:border-primary/50"
-                        />
+                        <Label>Deskripsi Bahasa Alami (atau pakai suara 🎙️)</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="contoh: besok pagi kirim laporan ke klien"
+                            value={nlInput}
+                            onChange={(e) => setNlInput(e.target.value)}
+                            className="border-border focus-visible:ring-0 focus-visible:border-primary/50"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={startVoiceRecording}
+                            className={cn("flex-shrink-0 transition-all", isRecording && "bg-red-100 text-red-600 border-red-300 animate-pulse")}
+                            aria-label="Rekam suara"
+                          >
+                            {isRecording ? <Loader2 className="h-4 w-4 animate-spin" /> : <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 lucide lucide-mic"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /></svg>}
+                          </Button>
+                        </div>
                       </div>
                       <div className="flex flex-col sm:flex-row gap-2">
                         <Button
@@ -905,29 +943,42 @@ export default function Todos() {
               <TabsTrigger
                 value="active"
                 className="flex-1 sm:flex-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-primary data-[state=active]:font-bold border-b-2 border-transparent rounded-none px-2 py-3 transition-none"
-                aria-label={`Tugas belum selesai, ${todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length} tugas`}
+                aria-label={`Tugas belum selesai, ${activeTodos.length} tugas`}
               >
-                Belum Beres ({todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length})
+                Belum Beres ({activeTodos.length})
               </TabsTrigger>
               <TabsTrigger
                 value="overdue"
                 className="flex-1 sm:flex-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-red-500 data-[state=active]:text-red-600 data-[state=active]:font-bold border-b-2 border-transparent rounded-none px-2 py-3 transition-none text-red-500/80"
                 aria-label="Tugas lewat deadline"
               >
-                Lewat Deadline ({todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date()).length})
+                Lewat Deadline ({overdueTodos.length})
               </TabsTrigger>
               <TabsTrigger
                 value="completed"
                 className="flex-1 sm:flex-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-primary data-[state=active]:font-bold border-b-2 border-transparent rounded-none px-2 py-3 transition-none"
-                aria-label={`Tugas sudah selesai, ${todos.filter(t => t.completed).length} tugas`}
+                aria-label={`Tugas sudah selesai, ${completedTodos.length} tugas`}
               >
-                Udah Beres ({todos.filter(t => t.completed).length})
+                Udah Beres ({completedTodos.length})
               </TabsTrigger>
             </TabsList>
 
             {/* Active Todos Tab */}
             <TabsContent value="active" className="space-y-3">
-              {filterAndSortTodos(todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date()))).length === 0 ? (
+              {focusTask ? (
+                <div className="py-4 animation-in fade-in zoom-in duration-300">
+                  <FocusMode
+                    taskId={focusTask.id}
+                    taskTitle={focusTask.title}
+                    estimatedMinutes={focusTask.estimated_duration_minutes}
+                    onClose={() => setFocusTask(null)}
+                    onComplete={() => {
+                      toggleComplete(focusTask);
+                      setFocusTask(null);
+                    }}
+                  />
+                </div>
+              ) : activeTodos.length === 0 ? (
                 <Card>
                   <CardContent className="py-12 text-center">
                     <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -939,22 +990,28 @@ export default function Todos() {
                   </CardContent>
                 </Card>
               ) : (
-                filterAndSortTodos(todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date()))).map((todo) => (
+                activeTodos.map((todo) => (
                   <Card key={todo.id} className="hover:shadow-md transition-shadow">
                     <CardHeader className="pb-3">
                       <div className="flex flex-col gap-3">
                         <div className="flex items-start gap-3">
                           {completeLoading[todo.id] ? (
-                            <div className="mt-1 h-4 w-4 flex items-center justify-center">
-                              <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                            <div className="mt-1 flex items-center justify-center w-6 h-6">
+                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
                             </div>
                           ) : (
-                            <Checkbox
-                              checked={todo.completed}
-                              onCheckedChange={() => toggleComplete(todo)}
-                              className="mt-1"
-                              aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
-                            />
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleComplete(todo); }}
+                              className={cn(
+                                "mt-0.5 flex items-center justify-center w-6 h-6 rounded-full border-2 transition-colors duration-200 shrink-0",
+                                todo.completed
+                                  ? "bg-primary border-primary text-primary-foreground"
+                                  : "border-muted-foreground/30 hover:border-primary/50 text-transparent hover:text-primary/20"
+                              )}
+                              aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'} `}
+                            >
+                              <CheckCircle2 className="h-4 w-4" strokeWidth={3} />
+                            </button>
                           )}
                           <div className="flex-1 min-w-0">
                             <CardTitle className="text-lg">
@@ -973,7 +1030,7 @@ export default function Todos() {
                               {todo.due_date && (
                                 <Badge variant="outline" className="gap-1">
                                   <Calendar className="h-3 w-3" />
-                                  {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
+                                  {format(new Date(todo.due_date), "dd MMM, HH:mm", { locale: idLocale })}
                                 </Badge>
                               )}
                               {todo.estimated_duration_minutes && (
@@ -994,36 +1051,31 @@ export default function Todos() {
                         </div>
                         <div className="flex gap-2 pt-2 border-t">
                           <Button
+                            onClick={() => setFocusTask(todo)}
+                            size="sm"
+                            variant="default"
+                            className="flex-1 bg-primary/90 hover:bg-primary"
+                            aria-label={`Mode Fokus untuk tugas ${todo.title} `}
+                          >
+                            <SparklesIcon className="h-4 w-4 mr-1" aria-hidden="true" />
+                            <span className="text-xs font-semibold">Fokus</span>
+                          </Button>
+                          <Button
                             onClick={() => openEditDialog(todo)}
                             size="sm"
                             variant="ghost"
                             className="flex-1"
-                            aria-label={`Edit tugas ${todo.title}`}
+                            aria-label={`Edit tugas ${todo.title} `}
                           >
                             <Edit className="h-4 w-4 mr-1" aria-hidden="true" />
                             <span className="text-xs">Edit</span>
-                          </Button>
-                          <Button
-                            onClick={() => rollbackTodo(todo)}
-                            size="sm"
-                            variant="ghost"
-                            className="flex-1"
-                            aria-label={`Kembali ke versi sebelumnya dari tugas ${todo.title}`}
-                            loading={rollbackLoading[todo.id]}
-                          >
-                            {!rollbackLoading[todo.id] && (
-                              <>
-                                <Undo2 className="h-4 w-4 mr-1" aria-hidden="true" />
-                                <span className="text-xs">Versi</span>
-                              </>
-                            )}
                           </Button>
                           <Button
                             onClick={() => deleteTodo(todo.id)}
                             size="sm"
                             variant="ghost"
                             className="flex-1 text-destructive hover:text-destructive"
-                            aria-label={`Hapus tugas ${todo.title}`}
+                            aria-label={`Hapus tugas ${todo.title} `}
                             loading={deleteLoading[todo.id]}
                           >
                             {!deleteLoading[todo.id] && (
@@ -1043,7 +1095,23 @@ export default function Todos() {
 
             {/* Overdue Todos Tab */}
             <TabsContent value="overdue" className="space-y-3">
-              {filterAndSortTodos(todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date())).length === 0 ? (
+              {overdueTodos.length > 0 && (
+                <div className="flex justify-end p-2 bg-red-50/50 border border-red-100 rounded-md mb-4 items-center gap-3">
+                  <span className="text-sm text-red-600 flex-1 ml-2">Tugas menumpuk? Biar AI aturin ulang 🪄</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-semibold"
+                    onClick={handleAutoReschedule}
+                    loading={rescheduleLoading}
+                  >
+                    <SparklesIcon className="h-4 w-4 mr-2" />
+                    Auto-Reschedule
+                  </Button>
+                </div>
+              )}
+
+              {overdueTodos.length === 0 ? (
                 <Card>
                   <CardContent className="py-12 text-center">
                     <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -1055,22 +1123,28 @@ export default function Todos() {
                   </CardContent>
                 </Card>
               ) : (
-                filterAndSortTodos(todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date())).map((todo) => (
+                overdueTodos.map((todo) => (
                   <Card key={todo.id} className="hover:shadow-md transition-shadow border-red-200 bg-red-50/10">
                     <CardHeader className="pb-3">
                       <div className="flex flex-col gap-3">
                         <div className="flex items-start gap-3">
                           {completeLoading[todo.id] ? (
-                            <div className="mt-1 h-4 w-4 flex items-center justify-center">
-                              <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                            <div className="mt-1 flex items-center justify-center w-6 h-6">
+                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
                             </div>
                           ) : (
-                            <Checkbox
-                              checked={todo.completed}
-                              onCheckedChange={() => toggleComplete(todo)}
-                              className="mt-1"
-                              aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
-                            />
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleComplete(todo); }}
+                              className={cn(
+                                "mt-0.5 flex items-center justify-center w-6 h-6 rounded-full border-2 transition-colors duration-200 shrink-0",
+                                todo.completed
+                                  ? "bg-primary border-primary text-primary-foreground"
+                                  : "border-red-500/30 hover:border-red-500/50 text-transparent hover:text-red-500/20"
+                              )}
+                              aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'} `}
+                            >
+                              <CheckCircle2 className="h-4 w-4" strokeWidth={3} />
+                            </button>
                           )}
                           <div className="flex-1 min-w-0">
                             <CardTitle className="text-lg text-red-600">
@@ -1089,7 +1163,7 @@ export default function Todos() {
                               {todo.due_date && (
                                 <Badge variant="destructive" className="gap-1">
                                   <Calendar className="h-3 w-3" />
-                                  {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
+                                  {format(new Date(todo.due_date), "dd MMM, HH:mm", { locale: idLocale })}
                                 </Badge>
                               )}
                             </div>
@@ -1147,16 +1221,22 @@ export default function Todos() {
                       <div className="flex flex-col gap-3">
                         <div className="flex items-start gap-3">
                           {completeLoading[todo.id] ? (
-                            <div className="mt-1 h-4 w-4 flex items-center justify-center">
-                              <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                            <div className="mt-1 flex items-center justify-center w-6 h-6">
+                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
                             </div>
                           ) : (
-                            <Checkbox
-                              checked={todo.completed}
-                              onCheckedChange={() => toggleComplete(todo)}
-                              className="mt-1"
-                              aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'}`}
-                            />
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleComplete(todo); }}
+                              className={cn(
+                                "mt-0.5 flex items-center justify-center w-6 h-6 rounded-full border-2 transition-colors duration-200 shrink-0",
+                                todo.completed
+                                  ? "bg-primary border-primary text-primary-foreground"
+                                  : "border-muted-foreground/30 hover:border-primary/50 text-transparent hover:text-primary/20"
+                              )}
+                              aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'} `}
+                            >
+                              <CheckCircle2 className="h-4 w-4" strokeWidth={3} />
+                            </button>
                           )}
                           <div className="flex-1 min-w-0">
                             <CardTitle className="text-lg line-through text-muted-foreground">
@@ -1175,7 +1255,7 @@ export default function Todos() {
                               {todo.due_date && (
                                 <Badge variant="outline" className="gap-1">
                                   <Calendar className="h-3 w-3" />
-                                  {format(new Date(todo.due_date), "dd MMM", { locale: idLocale })}
+                                  {format(new Date(todo.due_date), "dd MMM, HH:mm", { locale: idLocale })}
                                 </Badge>
                               )}
                               {todo.estimated_duration_minutes && (
@@ -1203,7 +1283,7 @@ export default function Todos() {
                             size="sm"
                             variant="ghost"
                             className="text-destructive hover:text-destructive"
-                            aria-label={`Hapus tugas ${todo.title}`}
+                            aria-label={`Hapus tugas ${todo.title} `}
                             loading={deleteLoading[todo.id]}
                           >
                             {!deleteLoading[todo.id] && (

@@ -92,6 +92,66 @@ All colors MUST be HSL.
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
+  .theme-deep-ocean {
+    --background: 215 50% 10%;
+    --foreground: 210 40% 98%;
+
+    --card: 215 50% 14%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 215 50% 14%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 199 89% 48%;
+    --primary-foreground: 215 50% 10%;
+
+    --secondary: 215 40% 20%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 215 40% 20%;
+    --muted-foreground: 210 40% 70%;
+
+    --accent: 215 40% 20%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 215 40% 20%;
+    --input: 215 40% 20%;
+    --ring: 199 89% 48%;
+  }
+
+  .theme-neon-dark {
+    --background: 280 50% 6%;
+    --foreground: 300 10% 98%;
+
+    --card: 280 50% 10%;
+    --card-foreground: 300 10% 98%;
+
+    --popover: 280 50% 10%;
+    --popover-foreground: 300 10% 98%;
+
+    --primary: 316 100% 50%;
+    --primary-foreground: 300 10% 98%;
+
+    --secondary: 280 40% 18%;
+    --secondary-foreground: 300 10% 98%;
+
+    --muted: 280 40% 18%;
+    --muted-foreground: 300 10% 70%;
+
+    --accent: 280 40% 18%;
+    --accent-foreground: 300 10% 98%;
+
+    --destructive: 350 100% 50%;
+    --destructive-foreground: 300 10% 98%;
+
+    --border: 280 40% 18%;
+    --input: 280 40% 18%;
+    --ring: 316 100% 50%;
+  }
 }
 
 @layer base {

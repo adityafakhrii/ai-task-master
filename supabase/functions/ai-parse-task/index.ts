@@ -8,7 +8,7 @@ const corsHeaders = {
 
 // Input validation constants
 const MAX_TEXT_LENGTH = 10000;
-const VALID_TYPES = ['parse', 'summary', 'search', 'anomaly', 'slice', 'reschedule'];
+const VALID_TYPES = ['parse', 'summary', 'search', 'anomaly', 'slice', 'reschedule', 'roast', 'theme_suggest'];
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -67,11 +67,11 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY not found');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+      console.error('GEMINI_API_KEY not found');
       return new Response(
-        JSON.stringify({ error: 'AI service not configured' }),
+        JSON.stringify({ error: 'AI service not configured (GEMINI_API_KEY is missing)' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -110,6 +110,15 @@ Buat summary singkat 1-2 kalimat yang informatif.`;
       systemPrompt = 'Buat ringkasan tugas harian. Return JSON: {"today_list": [{"title": string, "id": string, "priority": string}], "urgent": [{"title": string, "id": string}], "progress_summary": string, "recommendations": string[]}';
     } else if (type === 'search') {
       systemPrompt = 'Cari secara semantik dan return array string id yang relevan berdasarkan query. Return JSON array saja.';
+    } else if (type === 'anomaly') {
+      systemPrompt = `Anda adalah analis produktivitas tugas AI.
+Pengguna akan mengirimkan JSON array riwayat tugas mereka. Deteksi kebiasaan, pola, dan anomali dari data tersebut.
+Contoh: Apakah mereka sering mengabaikan tugas prioritas "high"? Apakah ada pola penundaan tugas tertentu?
+Return JSON dengan format:
+{
+  "insights": ["Temuan 1", "Temuan 2"],
+  "recommendations": ["Saran 1", "Saran 2"]
+}`;
     } else if (type === 'slice') {
       systemPrompt = `Anda adalah asisten produktivitas. Pengguna akan memberikan sebuah tugas yang mungkin besar atau tidak spesifik.
 Ubah tugas tersebut menjadi 3 hingga 5 sub-tugas (langkah-langkah kecil) yang spesifik dan actionable.
@@ -134,21 +143,37 @@ Return JSON dengan format:
   ]
 }
 Pastikan suggested_due_date logis dan disebar (misalnya pagi jam 09:00, siang jam 13:00) agar user tidak kelelahan. Jika id tersedia di input, gunakan id tersebut.`;
+    } else if (type === 'roast') {
+      systemPrompt = `Anda adalah "AI Roast", asisten produktivitas yang sarkastik, ceplas-ceplos, tapi lucu.
+Pengguna akan memberikan JSON array tugas-tugas "high priority" (penting) mereka yang "overdue" (melewati tenggat waktu).
+Tugas Anda adalah me-roasting (menyindir/mengejek secara komedi) pengguna karena menunda-nunda hal penting ini.
+Gunakan bahasa gaul/slang Indonesia (bro, lu, gue, dkk). Harus lucu dan nyelekit sedikit, maksimal 2-3 kalimat.
+Return JSON dengan satu property "roast_message" yang berisi string lucu tersebut. Contoh: {"roast_message": "Bro, 'Mandi' aja prioritas tinggi masak sampe telat 2 jam?! Mau gue mandiin?"}`;
+    } else if (type === 'theme_suggest') {
+      systemPrompt = `Anda adalah "AI Theme Designer".
+Pengguna akan memberikan JSON array tentang status tugas-tugas mereka hari ini (jumlah tugas high priority vs low priority, dll).
+Tugas Anda adalah merekomendasikan tema visual yang cocok.
+Jika tugas "high priority" banyak, maka sarankan tema "neon-dark" agar fokus dan bersemangat. 
+Jika tugas santai/biasa lebih banyak, sarankan tema "deep-ocean" agar tenang.
+Secara lalai, sarankan "default".
+Return JSON dengan satu property "theme" yang berisi salah satu dari: "default", "neon-dark", atau "deep-ocean".`;
     }
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + GEMINI_API_KEY, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: systemPrompt + '\n\n' + userPrompt }]
+          }
         ],
-        response_format: { type: 'json_object' }
+        generationConfig: {
+          responseMimeType: "application/json",
+        }
       }),
     });
 
@@ -177,9 +202,10 @@ Pastikan suggested_due_date logis dan disebar (misalnya pagi jam 09:00, siang ja
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!content) {
+      console.error('No content in AI response:', data);
       return new Response(
         JSON.stringify({ error: 'No response from AI' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -188,7 +214,9 @@ Pastikan suggested_due_date logis dan disebar (misalnya pagi jam 09:00, siang ja
 
     let parsed;
     try {
-      parsed = JSON.parse(content);
+      // Remove generic markdown code block formatting some LLMs add
+      const cleanContent = content.replace(/```(?:json)?\s?/gi, '').replace(/```/g, '').trim();
+      parsed = JSON.parse(cleanContent);
     } catch (e) {
       console.error('Failed to parse AI response:', content);
       return new Response(
