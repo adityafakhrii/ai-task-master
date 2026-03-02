@@ -9,8 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Bell, Calendar, User, LogOut, CheckCircle2, Search, Loader2, Sparkles, AlertCircle, Edit, Trash2, Clock, SparklesIcon, ListFilter, ArrowUpDown, MoreVertical } from 'lucide-react';
-import { format } from 'date-fns';
+import { Plus, Bell, Calendar, User, LogOut, CheckCircle2, Search, Loader2, Sparkles, AlertCircle, Edit, Trash2, Clock, SparklesIcon, ListFilter, ArrowUpDown, MoreVertical, Flame } from 'lucide-react';
+import { format, isToday } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
@@ -33,8 +33,8 @@ import { ToastAction } from '@/components/ui/toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FocusMode } from '@/components/FocusMode';
 import confetti from 'canvas-confetti';
-import { AIPopupRoast } from '@/components/AIPopupRoast';
 import { ModeToggle } from '@/components/mode-toggle';
+import { generateAIRoast } from '@/services/ai';
 
 interface Todo {
   id: string;
@@ -82,6 +82,8 @@ export default function Todos() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterDateRange, setFilterDateRange] = useState<'all' | 'today' | 'week' | 'overdue'>('all');
   const [filterTag, setFilterTag] = useState<string>('all');
+  const [inlineRoast, setInlineRoast] = useState<string | null>(null);
+  const [roastLoading, setRoastLoading] = useState(false);
 
   // Sort state
   const [sortBy, setSortBy] = useState<'urgency' | 'priority' | 'due_date' | 'created_at' | 'title'>('urgency');
@@ -104,6 +106,56 @@ export default function Todos() {
     }
     fetchTodos();
   }, [user, authLoading, navigate]);
+
+  // Handle daily inline roast fetching
+  useEffect(() => {
+    if (todosLoading || todos.length === 0) return;
+
+    // Check if we need a roast
+    const overdueHighPriority = todos.filter(t =>
+      !t.completed &&
+      t.priority === 'high' &&
+      t.due_date &&
+      new Date(t.due_date) < new Date()
+    );
+
+    if (overdueHighPriority.length > 0) {
+      const storedDataStr = localStorage.getItem('catetyuk_daily_roast');
+      const todayStr = new Date().toDateString();
+
+      let shouldFetch = true;
+      if (storedDataStr) {
+        try {
+          const storedData = JSON.parse(storedDataStr);
+          if (storedData.date === todayStr && storedData.message) {
+            setInlineRoast(storedData.message);
+            shouldFetch = false;
+          }
+        } catch (e) {
+          // invalid cache
+        }
+      }
+
+      if (shouldFetch) {
+        setRoastLoading(true);
+        generateAIRoast(overdueHighPriority).then(res => {
+          if (res?.message) {
+            setInlineRoast(res.message);
+            localStorage.setItem('catetyuk_daily_roast', JSON.stringify({
+              date: todayStr,
+              message: res.message
+            }));
+          }
+        }).catch(err => {
+          console.error("Failed to generate offline roast", err);
+        }).finally(() => {
+          setRoastLoading(false);
+        });
+      }
+    } else {
+      setInlineRoast(null); // Clear if no overdue high priority
+    }
+  }, [todos, todosLoading]);
 
   const location = useLocation();
   useEffect(() => {
@@ -375,6 +427,12 @@ export default function Todos() {
     }
   };
 
+  // Calculate Daily Stats
+  const todayTasks = todos.filter(t => t.due_date && isToday(new Date(t.due_date)));
+  const completedTodayTasks = todayTasks.filter(t => t.completed);
+  const isDailyTargetMet = todayTasks.length > 0 && todayTasks.length === completedTodayTasks.length;
+  const isPerfectDay = isDailyTargetMet || (todos.filter(t => !t.completed).length === 0 && todos.length > 0);
+
   const runDailySummary = async () => {
     try {
       setSummaryLoading(true);
@@ -425,8 +483,12 @@ export default function Todos() {
     const updatedStatus = !todo.completed;
 
     if (updatedStatus) {
-      const remainingUncompleted = todos.filter(t => !t.completed && t.id !== todo.id).length;
-      if (remainingUncompleted === 0 && todos.length > 0) {
+      // Check if this makes the daily target met!
+      const remainingToday = todayTasks.filter(t => !t.completed && t.id !== todo.id).length;
+      const willMeetTarget = (remainingToday === 0 && todayTasks.length > 0) ||
+        (todos.filter(t => !t.completed && t.id !== todo.id).length === 0 && todos.length > 0);
+
+      if (willMeetTarget) {
         confetti({
           particleCount: 150,
           spread: 80,
@@ -574,7 +636,6 @@ export default function Todos() {
 
   return (
     <MobileLayout>
-      <AIPopupRoast todos={todos} />
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
         <div className="container mx-auto p-4 pb-24 max-w-4xl">
           {/* Mobile-First Header */}
@@ -584,14 +645,25 @@ export default function Todos() {
               {/* Branding */}
               <div className="flex items-center gap-2">
                 <img src="/CatetYuk3.png" alt="CatetYuk Logo" className="h-14 w-14 flex-shrink-0" aria-hidden="true" />
-                <div className="min-w-0">
-                  <h1 className="text-2xl sm:text-3xl font-bold leading-tight">CatetYuk</h1>
-                  <p className="text-xs text-muted-foreground">Simplify your task</p>
+                <div className="min-w-0 flex items-center gap-3">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold leading-tight">CatetYuk</h1>
+                    <p className="text-xs text-muted-foreground">Simplify your task</p>
+                  </div>
                 </div>
               </div>
 
-              {/* Theme Toggle & User Menu */}
+              {/* Theme Toggle, Streak & User Menu */}
               <div className="flex items-center gap-3">
+                {/* Daily Streak/Badge */}
+                <div title={isPerfectDay ? "Target Harian Tercapai!" : "Selesaikan tugas hari ini untuk api!"} className={cn(
+                  "flex flex-col items-center justify-center rounded-lg border bg-card p-1 pb-1.5 min-w-[2.5rem] transition-all",
+                  isPerfectDay ? "border-orange-500 shadow-sm shadow-orange-500/20" : "border-border/50 opacity-70"
+                )}>
+                  <Flame className={cn("h-4 w-4", isPerfectDay ? "text-orange-500 animate-pulse" : "text-muted-foreground")} />
+                  <span className="text-[10px] font-bold leading-none mt-0.5">{completedTodayTasks.length}/{todayTasks.length > 0 ? todayTasks.length : '-'}</span>
+                </div>
+
                 <ModeToggle />
                 <div className="hidden md:flex items-center gap-2">
                   <Button
@@ -1096,18 +1168,30 @@ export default function Todos() {
             {/* Overdue Todos Tab */}
             <TabsContent value="overdue" className="space-y-3">
               {overdueTodos.length > 0 && (
-                <div className="flex justify-end p-2 bg-red-50/50 border border-red-100 rounded-md mb-4 items-center gap-3">
-                  <span className="text-sm text-red-600 flex-1 ml-2">Tugas menumpuk? Biar AI aturin ulang 🪄</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-semibold"
-                    onClick={handleAutoReschedule}
-                    loading={rescheduleLoading}
-                  >
-                    <SparklesIcon className="h-4 w-4 mr-2" />
-                    Auto-Reschedule
-                  </Button>
+                <div className="flex flex-col gap-3 mb-4">
+                  <div className="flex justify-end p-2 bg-red-50/50 border border-red-100 rounded-md items-center gap-3">
+                    <span className="text-sm text-red-600 flex-1 ml-2">Tugas menumpuk? Biar AI aturin ulang 🪄</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-semibold"
+                      onClick={handleAutoReschedule}
+                      loading={rescheduleLoading}
+                    >
+                      <SparklesIcon className="h-4 w-4 mr-2" />
+                      Auto-Reschedule
+                    </Button>
+                  </div>
+
+                  {inlineRoast && (
+                    <div className="p-4 bg-orange-50 dark:bg-orange-950/30 rounded-xl border border-orange-200 dark:border-orange-900 flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-orange-800 dark:text-orange-400">AI Roast Hari Ini 🔥</p>
+                        <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">{inlineRoast}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
