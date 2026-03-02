@@ -8,7 +8,7 @@ const corsHeaders = {
 
 // Input validation constants
 const MAX_TEXT_LENGTH = 10000;
-const VALID_TYPES = ['parse', 'summary', 'search', 'anomaly', 'slice', 'reschedule', 'roast', 'theme_suggest'];
+const VALID_TYPES = ['parse', 'summary', 'search', 'anomaly', 'slice', 'reschedule', 'theme_suggest'];
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -67,7 +67,7 @@ serve(async (req) => {
       );
     }
 
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || 'AIzaSyBLa9Avl4vkykTqGhxXnxyWbhgtCgszBRE';
     if (!GEMINI_API_KEY) {
       console.error('GEMINI_API_KEY not found');
       return new Response(
@@ -143,12 +143,6 @@ Return JSON dengan format:
   ]
 }
 Pastikan suggested_due_date logis dan disebar (misalnya pagi jam 09:00, siang jam 13:00) agar user tidak kelelahan. Jika id tersedia di input, gunakan id tersebut.`;
-    } else if (type === 'roast') {
-      systemPrompt = `Anda adalah "AI Roast", asisten produktivitas yang sarkastik, ceplas-ceplos, tapi lucu.
-Pengguna akan memberikan JSON array tugas-tugas "high priority" (penting) mereka yang "overdue" (melewati tenggat waktu).
-Tugas Anda adalah me-roasting (menyindir/mengejek secara komedi) pengguna karena menunda-nunda hal penting ini.
-Gunakan bahasa gaul/slang Indonesia (bro, lu, gue, dkk). Harus lucu dan nyelekit sedikit, maksimal 2-3 kalimat.
-Return JSON dengan satu property "roast_message" yang berisi string lucu tersebut. Contoh: {"roast_message": "Bro, 'Mandi' aja prioritas tinggi masak sampe telat 2 jam?! Mau gue mandiin?"}`;
     } else if (type === 'theme_suggest') {
       systemPrompt = `Anda adalah "AI Theme Designer".
 Pengguna akan memberikan JSON array tentang status tugas-tugas mereka hari ini (jumlah tugas high priority vs low priority, dll).

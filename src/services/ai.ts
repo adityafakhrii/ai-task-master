@@ -63,17 +63,7 @@ export async function rescheduleTasks(tasks: any[]) {
   return data;
 }
 
-export async function generateAIRoast(overdueTasks: any[]) {
-  const { data, error } = await supabase.functions.invoke('ai-parse-task', {
-    body: { text: JSON.stringify(overdueTasks).slice(0, 8000), type: 'roast' }
-  });
 
-  if (error) {
-    throw new Error(error.message || 'Gagal memanggil AI Roast');
-  }
-
-  return data;
-}
 
 export async function generateThemeSuggestion(tasks: any[]) {
   const { data, error } = await supabase.functions.invoke('ai-parse-task', {

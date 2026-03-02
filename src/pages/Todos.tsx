@@ -34,7 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FocusMode } from '@/components/FocusMode';
 import confetti from 'canvas-confetti';
 import { ModeToggle } from '@/components/mode-toggle';
-import { generateAIRoast } from '@/services/ai';
+
 
 interface Todo {
   id: string;
@@ -70,6 +70,7 @@ export default function Todos() {
   const [aiHints, setAiHints] = useState<{ recommendedPriority?: 'low' | 'medium' | 'high'; estimatedMinutes?: number | null; suggestions?: { subtasks?: string[]; checklist?: string[]; templates?: string[] } } | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const auditLogRef = useRef<Record<string, { snapshot: Todo; timestamp: string; actor: string }[]>>({});
+  const roastFetchedRef = useRef(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [dailyData, setDailyData] = useState<any | null>(null);
   const [anomalyOpen, setAnomalyOpen] = useState(false);
@@ -107,11 +108,11 @@ export default function Todos() {
     fetchTodos();
   }, [user, authLoading, navigate]);
 
-  // Handle daily inline roast fetching
+  // Handle daily inline roast (100% lokal, tanpa API)
   useEffect(() => {
     if (todosLoading || todos.length === 0) return;
+    if (roastFetchedRef.current) return;
 
-    // Check if we need a roast
     const overdueHighPriority = todos.filter(t =>
       !t.completed &&
       t.priority === 'high' &&
@@ -120,40 +121,41 @@ export default function Todos() {
     );
 
     if (overdueHighPriority.length > 0) {
-      const storedDataStr = localStorage.getItem('catetyuk_daily_roast');
       const todayStr = new Date().toDateString();
+      const storedDataStr = localStorage.getItem('catetyuk_daily_roast');
 
-      let shouldFetch = true;
+      // Cek cache hari ini
       if (storedDataStr) {
         try {
           const storedData = JSON.parse(storedDataStr);
           if (storedData.date === todayStr && storedData.message) {
             setInlineRoast(storedData.message);
-            shouldFetch = false;
+            roastFetchedRef.current = true;
+            return;
           }
-        } catch (e) {
-          // invalid cache
-        }
+        } catch (e) { /* invalid cache */ }
       }
 
-      if (shouldFetch) {
-        setRoastLoading(true);
-        generateAIRoast(overdueHighPriority).then(res => {
-          if (res?.message) {
-            setInlineRoast(res.message);
-            localStorage.setItem('catetyuk_daily_roast', JSON.stringify({
-              date: todayStr,
-              message: res.message
-            }));
-          }
-        }).catch(err => {
-          console.error("Failed to generate offline roast", err);
-        }).finally(() => {
-          setRoastLoading(false);
-        });
-      }
+      // Generate roast lokal
+      roastFetchedRef.current = true;
+      const count = overdueHighPriority.length;
+      const taskNames = overdueHighPriority.slice(0, 3).map(t => `"${t.title}"`).join(', ');
+      const roasts = [
+        `Bro, lu punya ${count} tugas penting yang udah lewat deadline (${taskNames}). Mau nunggu sampe kapan? Sampe tugas-nya pensiun duluan? 🫠`,
+        `Woy, ${count} tugas high priority telat semua: ${taskNames}. Ini mah bukan prokrastinasi, ini speedrun gagal hidup 💀`,
+        `Gokil ${count} tugas penting kelewat (${taskNames}). Lu kira deadline itu saran doang ya? Bukan, itu DEAD-line bro! ☠️`,
+        `Mantap ${count} tugas overdue termasuk ${taskNames}. Kalau nunda itu olahraga, lu udah dapet medali emas olimpiade 🏅`,
+        `Ada ${count} tugas penting nganggur: ${taskNames}. Tugas lu nunggu dikerjain kayak nunggu gebetan bales chat — gak bakal selesai sendiri 😮‍💨`,
+        `Halo? ${count} tugas high priority lewat deadline (${taskNames})! Lu mau bikin mereka jadi fosil dulu baru dikerjain? 🦴`,
+        `Buset ${count} tugas penting telat: ${taskNames}. Kalender lu nangis liat ini. Literally nangis. 😭`,
+        `${count} tugas overdue (${taskNames}). Lu tau gak bedanya lu sama kucing? Kucing tidur 16 jam tapi gak punya deadline 🐱`,
+      ];
+      const message = roasts[Math.floor(Math.random() * roasts.length)];
+      setInlineRoast(message);
+      localStorage.setItem('catetyuk_daily_roast', JSON.stringify({ date: todayStr, message }));
     } else {
-      setInlineRoast(null); // Clear if no overdue high priority
+      setInlineRoast(null);
+      roastFetchedRef.current = true;
     }
   }, [todos, todosLoading]);
 
@@ -473,7 +475,8 @@ export default function Todos() {
         }
       }
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error AI Reschedule', description: error.message });
+      const isRateLimit = error.message?.includes('429') || error.message?.toLowerCase()?.includes('rate limit');
+      toast({ variant: 'destructive', title: 'Error AI Reschedule', description: isRateLimit ? 'AI sedang sibuk, coba lagi dalam beberapa detik ya!' : error.message });
     } finally {
       setRescheduleLoading(false);
     }
