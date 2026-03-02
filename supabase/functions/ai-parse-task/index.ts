@@ -8,7 +8,7 @@ const corsHeaders = {
 
 // Input validation constants
 const MAX_TEXT_LENGTH = 10000;
-const VALID_TYPES = ['parse', 'summary', 'search', 'anomaly'];
+const VALID_TYPES = ['parse', 'summary', 'search', 'anomaly', 'slice', 'reschedule'];
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -21,7 +21,7 @@ serve(async (req) => {
     if (!authHeader) {
       console.error('No authorization header provided');
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }), 
+        JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -36,7 +36,7 @@ serve(async (req) => {
     if (authError || !user) {
       console.error('Authentication failed:', authError?.message);
       return new Response(
-        JSON.stringify({ error: 'Invalid token' }), 
+        JSON.stringify({ error: 'Invalid token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -44,25 +44,25 @@ serve(async (req) => {
     console.log('Authenticated user:', user.id);
 
     const { text, type } = await req.json();
-    
+
     // Input validation
     if (!text || typeof text !== 'string') {
       return new Response(
-        JSON.stringify({ error: 'text is required' }), 
+        JSON.stringify({ error: 'text is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (text.length > MAX_TEXT_LENGTH) {
       return new Response(
-        JSON.stringify({ error: 'Text exceeds maximum length of 10000 characters' }), 
+        JSON.stringify({ error: 'Text exceeds maximum length of 10000 characters' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (type && !VALID_TYPES.includes(type)) {
       return new Response(
-        JSON.stringify({ error: `Invalid type. Must be one of: ${VALID_TYPES.join(', ')}` }), 
+        JSON.stringify({ error: `Invalid type. Must be one of: ${VALID_TYPES.join(', ')}` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -71,7 +71,7 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) {
       console.error('LOVABLE_API_KEY not found');
       return new Response(
-        JSON.stringify({ error: 'AI service not configured' }), 
+        JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -110,21 +110,30 @@ Buat summary singkat 1-2 kalimat yang informatif.`;
       systemPrompt = 'Buat ringkasan tugas harian. Return JSON: {"today_list": [{"title": string, "id": string, "priority": string}], "urgent": [{"title": string, "id": string}], "progress_summary": string, "recommendations": string[]}';
     } else if (type === 'search') {
       systemPrompt = 'Cari secara semantik dan return array string id yang relevan berdasarkan query. Return JSON array saja.';
-    } else if (type === 'anomaly') {
-      systemPrompt = `Analisis perilaku dan pola tugas pengguna. Identifikasi:
-- Pola pembuatan dan penyelesaian tugas (waktu, frekuensi)
-- Tugas dengan prioritas tinggi yang belum diselesaikan
-- Tugas yang sering terlambat atau overdue
-- Kategori tugas yang paling sering dibuat
-- Waktu estimasi vs waktu aktual
-- Pola prokrastinasi atau kebiasaan positif
+    } else if (type === 'slice') {
+      systemPrompt = `Anda adalah asisten produktivitas. Pengguna akan memberikan sebuah tugas yang mungkin besar atau tidak spesifik.
+Ubah tugas tersebut menjadi 3 hingga 5 sub-tugas (langkah-langkah kecil) yang spesifik dan actionable.
+Return JSON dengan satu property "subtasks" yang berisi array string. Contoh: {"subtasks": ["Siapkan data outline", "Hubungi vendor", "Draft email pengajuan"]}`;
+    } else if (type === 'reschedule') {
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      const tomorrow = new Date(today.getTime() + 86400000).toISOString().split('T')[0];
+      const nextWeek = new Date(today.getTime() + 604800000).toISOString().split('T')[0];
 
-Return JSON: {
-  "insights": string[], // 3-5 insight spesifik tentang perilaku user
-  "recommendations": string[] // 3-5 rekomendasi actionable
+      systemPrompt = `Anda adalah pengatur jadwal pintar (Calendar Tetris AI). 
+Pengguna akan mengirimkan JSON array berisi tugas-tugas yang "overdue" (melewati tenggat waktu). 
+Tugas Anda adalah membuat ulang rekomendasi "due_date" untuk tiap tugas berdasarkan prioritas:
+- "high" harus hari ini (${todayStr}) atau maksimal besok (${tomorrow}).
+- "medium" bisa besok atau lusa.
+- "low" bisa didistribusikan hingga minggu depan (${nextWeek}).
+
+Return JSON dengan format:
+{
+  "rescheduled_tasks": [
+    { "id": "tugas_id", "suggested_due_date": "YYYY-MM-DDTHH:mm:ssZ" }
+  ]
 }
-
-Berikan analisis yang personal dan konstruktif berdasarkan data tugas yang ada.`;
+Pastikan suggested_due_date logis dan disebar (misalnya pagi jam 09:00, siang jam 13:00) agar user tidak kelelahan. Jika id tersedia di input, gunakan id tersebut.`;
     }
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -146,33 +155,33 @@ Berikan analisis yang personal dan konstruktif berdasarkan data tugas yang ada.`
     if (!response.ok) {
       const errorText = await response.text();
       console.error('AI Gateway error:', response.status, errorText);
-      
+
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Coba lagi sebentar ya.' }), 
+          JSON.stringify({ error: 'Rate limit exceeded. Coba lagi sebentar ya.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
+
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: 'Kredit AI habis. Tolong tambah kredit di settings.' }), 
+          JSON.stringify({ error: 'Kredit AI habis. Tolong tambah kredit di settings.' }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       return new Response(
-        JSON.stringify({ error: 'AI service error' }), 
+        JSON.stringify({ error: 'AI service error' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
-    
+
     if (!content) {
       return new Response(
-        JSON.stringify({ error: 'No response from AI' }), 
+        JSON.stringify({ error: 'No response from AI' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -183,20 +192,20 @@ Berikan analisis yang personal dan konstruktif berdasarkan data tugas yang ada.`
     } catch (e) {
       console.error('Failed to parse AI response:', content);
       return new Response(
-        JSON.stringify({ error: 'Invalid AI response format' }), 
+        JSON.stringify({ error: 'Invalid AI response format' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     return new Response(
-      JSON.stringify(parsed), 
+      JSON.stringify(parsed),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error in ai-parse-task:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), 
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
