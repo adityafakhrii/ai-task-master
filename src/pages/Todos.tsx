@@ -34,7 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FocusMode } from '@/components/FocusMode';
 import confetti from 'canvas-confetti';
 import { AIPopupRoast } from '@/components/AIPopupRoast';
-import { AIToggleTheme } from '@/components/AIToggleTheme';
+import { ModeToggle } from '@/components/mode-toggle';
 
 interface Todo {
   id: string;
@@ -592,7 +592,7 @@ export default function Todos() {
 
               {/* Theme Toggle & User Menu */}
               <div className="flex items-center gap-3">
-                <AIToggleTheme todos={activeTodos} />
+                <ModeToggle />
                 <div className="hidden md:flex items-center gap-2">
                   <Button
                     onClick={() => navigate('/profile')}
