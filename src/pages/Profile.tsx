@@ -25,6 +25,59 @@ import {
 import Footer from '@/components/Footer';
 import { MobileLayout } from '@/components/MobileLayout';
 
+const compressAndConvertToWebP = (file: File, maxDimension = 400, quality = 0.8): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > maxDimension) {
+                        height = Math.round((height * maxDimension) / width);
+                        width = maxDimension;
+                    }
+                } else {
+                    if (height > maxDimension) {
+                        width = Math.round((width * maxDimension) / height);
+                        height = maxDimension;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    reject(new Error('Gagal membuat context 2d canvas'));
+                    return;
+                }
+
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob(
+                    (blob) => {
+                        if (blob) {
+                            resolve(blob);
+                        } else {
+                            reject(new Error('Gagal mengonversi gambar ke WebP'));
+                        }
+                    },
+                    'image/webp',
+                    quality
+                );
+            };
+            img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (err) => reject(err);
+    });
+};
+
 export default function Profile() {
     const { user, signOut, loading: authLoading } = useAuth();
     const navigate = useNavigate();
@@ -65,9 +118,9 @@ export default function Profile() {
             .single();
 
         if (!error && data) {
-            setAvatarUrl(data.avatar_url || user.user_metadata.avatar_url || '');
+            setAvatarUrl(data.avatar_url || user.user_metadata.avatar_url || user.user_metadata.picture || '');
         } else {
-            setAvatarUrl(user.user_metadata.avatar_url || '');
+            setAvatarUrl(user.user_metadata.avatar_url || user.user_metadata.picture || '');
         }
     };
 
@@ -168,13 +221,17 @@ export default function Profile() {
             }
 
             const file = event.target.files[0];
-            const fileExt = file.name.split('.').pop();
-            // Use crypto-secure random instead of Math.random()
-            const filePath = `${user!.id}/${generateSecureFileName()}.${fileExt}`;
+            
+            // Compress and convert to WebP
+            const webpBlob = await compressAndConvertToWebP(file);
+            const filePath = `${user!.id}/${generateSecureFileName()}.webp`;
 
             const { error: uploadError } = await supabase.storage
                 .from('avatars')
-                .upload(filePath, file, { upsert: true });
+                .upload(filePath, webpBlob, { 
+                    contentType: 'image/webp',
+                    upsert: true 
+                });
 
             if (uploadError) throw uploadError;
 
@@ -188,6 +245,11 @@ export default function Profile() {
                 .eq('id', user!.id);
 
             if (updateError) throw updateError;
+
+            // Sync update to auth metadata so it propagates across the app instantly
+            await supabase.auth.updateUser({
+                data: { avatar_url: data.publicUrl }
+            });
 
             setAvatarUrl(data.publicUrl);
 

@@ -60,7 +60,7 @@ export default function Menu() {
                     className="bg-card/50 backdrop-blur-sm border border-border/50 p-4 rounded-xl flex items-center gap-4 active:scale-[0.98] transition-all cursor-pointer"
                 >
                     <Avatar className="h-16 w-16 border-2 border-primary/20">
-                        <AvatarImage src={user?.user_metadata?.avatar_url} />
+                        <AvatarImage src={user?.user_metadata?.avatar_url || user?.user_metadata?.picture} />
                         <AvatarFallback className="text-xl bg-primary/10 text-primary">
                             {user?.email?.charAt(0).toUpperCase()}
                         </AvatarFallback>
