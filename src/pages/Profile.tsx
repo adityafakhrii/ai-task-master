@@ -7,8 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, User, Lock, Camera, AlertTriangle, Trash2 } from 'lucide-react';
+import { ArrowLeft, User, Lock, Camera, AlertTriangle, Trash2, Eye, EyeOff } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useTheme } from '@/components/theme-provider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -27,11 +29,15 @@ export default function Profile() {
     const { user, signOut, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { theme, setTheme } = useTheme();
     const [loading, setLoading] = useState(false);
     const [fullName, setFullName] = useState('');
     const [password, setPassword] = useState('');
     const [oldPassword, setOldPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showOldPassword, setShowOldPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [avatarUrl, setAvatarUrl] = useState<string>('');
     const [uploading, setUploading] = useState(false);
     const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -341,6 +347,33 @@ export default function Profile() {
                         <Card>
                             <CardHeader>
                                 <div className="flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-primary"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 1 0 10 10"/></svg>
+                                    <CardTitle>Tema Visual</CardTitle>
+                                </div>
+                                <CardDescription>Ubah tampilan visual aplikasi sesuai mood lo.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="theme-select">Pilih Tema</Label>
+                                    <Select value={theme} onValueChange={(val) => setTheme(val)}>
+                                        <SelectTrigger id="theme-select" className="w-full">
+                                            <SelectValue placeholder="Pilih tema..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="light">Terang (Light)</SelectItem>
+                                            <SelectItem value="dark">Gelap (Dark)</SelectItem>
+                                            <SelectItem value="neon-dark">Neon Cyberpunk</SelectItem>
+                                            <SelectItem value="deep-ocean">Deep Ocean</SelectItem>
+                                            <SelectItem value="system">Ikut Sistem (System)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <div className="flex items-center gap-2">
                                     <Lock className="h-5 w-5 text-primary" aria-hidden="true" />
                                     <CardTitle>{(user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google')) ? 'Atur Password Login' : 'Ganti Password'}</CardTitle>
                                 </div>
@@ -355,37 +388,82 @@ export default function Profile() {
                                     {!(user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google')) && (
                                         <div className="space-y-2">
                                             <Label htmlFor="oldPassword">Password Lama</Label>
-                                            <Input
-                                                id="oldPassword"
-                                                type="password"
-                                                value={oldPassword}
-                                                onChange={(e) => setOldPassword(e.target.value)}
-                                                placeholder="Masukin password lama dulu"
-                                                required
-                                            />
+                                            <div className="relative">
+                                                <Input
+                                                    id="oldPassword"
+                                                    type={showOldPassword ? "text" : "password"}
+                                                    value={oldPassword}
+                                                    onChange={(e) => setOldPassword(e.target.value)}
+                                                    placeholder="Masukin password lama dulu"
+                                                    required
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                                    onClick={() => setShowOldPassword(!showOldPassword)}
+                                                >
+                                                    {showOldPassword ? (
+                                                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                                    ) : (
+                                                        <Eye className="h-4 w-4 text-muted-foreground" />
+                                                    )}
+                                                </Button>
+                                            </div>
                                         </div>
                                     )}
                                     <div className="space-y-2">
                                         <Label htmlFor="password">Password Baru</Label>
-                                        <Input
-                                            id="password"
-                                            type="password"
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            placeholder="Isi password baru (min. 6 karakter)"
-                                            aria-label="Password baru"
-                                        />
+                                        <div className="relative">
+                                            <Input
+                                                id="password"
+                                                type={showNewPassword ? "text" : "password"}
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                                placeholder="Isi password baru (min. 6 karakter)"
+                                                aria-label="Password baru"
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                                onClick={() => setShowNewPassword(!showNewPassword)}
+                                            >
+                                                {showNewPassword ? (
+                                                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                                ) : (
+                                                    <Eye className="h-4 w-4 text-muted-foreground" />
+                                                )}
+                                            </Button>
+                                        </div>
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="confirmPassword">Konfirmasi Password Baru</Label>
-                                        <Input
-                                            id="confirmPassword"
-                                            type="password"
-                                            value={confirmPassword}
-                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                            placeholder="Ulangi password baru"
-                                            aria-label="Konfirmasi password baru"
-                                        />
+                                        <div className="relative">
+                                            <Input
+                                                id="confirmPassword"
+                                                type={showConfirmPassword ? "text" : "password"}
+                                                value={confirmPassword}
+                                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                                placeholder="Ulangi password baru"
+                                                aria-label="Konfirmasi password baru"
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            >
+                                                {showConfirmPassword ? (
+                                                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                                ) : (
+                                                    <Eye className="h-4 w-4 text-muted-foreground" />
+                                                )}
+                                            </Button>
+                                        </div>
                                     </div>
                                     <Button type="submit" loading={loading} disabled={!password || (!oldPassword && !(user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google')))}>
                                         {loading ? 'Lagi proses...' : (user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google')) ? 'Buat Password Baru' : 'Ganti Password Sekarang'}

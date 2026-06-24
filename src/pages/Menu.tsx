@@ -3,6 +3,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { MobileLayout } from '@/components/MobileLayout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { useTheme } from '@/components/theme-provider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
     User,
     Shield,
@@ -17,6 +19,7 @@ import {
 export default function Menu() {
     const { user, signOut } = useAuth();
     const navigate = useNavigate();
+    const { theme, setTheme } = useTheme();
 
     const handleSignOut = async () => {
         await signOut();
@@ -75,7 +78,29 @@ export default function Menu() {
                     </div>
                     <ChevronRight className="h-5 w-5 text-muted-foreground" />
                 </div>
-
+ 
+                {/* Theme Selector */}
+                <div className="space-y-2">
+                    <h3 className="px-2 text-sm font-medium text-muted-foreground">
+                        Tema Tampilan
+                    </h3>
+                    <div className="bg-card/50 backdrop-blur-sm border border-border/50 p-4 rounded-xl flex items-center justify-between gap-4">
+                        <span className="font-medium text-sm">Pilih Tema Visual</span>
+                        <Select value={theme} onValueChange={(val) => setTheme(val)}>
+                            <SelectTrigger id="theme-select" className="w-[160px] bg-background">
+                                <SelectValue placeholder="Pilih tema..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="light">Terang (Light)</SelectItem>
+                                <SelectItem value="dark">Gelap (Dark)</SelectItem>
+                                <SelectItem value="neon-dark">Neon Cyberpunk</SelectItem>
+                                <SelectItem value="deep-ocean">Deep Ocean</SelectItem>
+                                <SelectItem value="system">Sistem</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+ 
                 {/* Menu Items */}
                 <div className="space-y-2">
                     <h3 className="px-2 text-sm font-medium text-muted-foreground">

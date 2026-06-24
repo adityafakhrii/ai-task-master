@@ -16,8 +16,14 @@ const loginSchema = z.object({
   password: z.string().min(6, 'Password minimal 6 karakter dong.')
 });
 
-const signupSchema = loginSchema.extend({
-  fullName: z.string().min(2, 'Nama kependekan, minimal 2 huruf lah.').max(100, 'Nama kepanjangan, singkat dikit napa.')
+const signupSchema = z.object({
+  fullName: z.string().min(2, 'Nama kependekan, minimal 2 huruf lah.').max(100, 'Nama kepanjangan, singkat dikit napa.'),
+  email: z.string().email('Email gak valid nih, coba cek lagi.'),
+  password: z.string().min(6, 'Password minimal 6 karakter dong.'),
+  confirmPassword: z.string().min(6, 'Konfirmasi password minimal 6 karakter.')
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Konfirmasi password gak cocok nih.",
+  path: ["confirmPassword"]
 });
 
 export default function Auth() {
@@ -26,6 +32,7 @@ export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -70,7 +77,7 @@ export default function Auth() {
         const { error } = await signIn(email, password);
         if (!error) navigate('/todos');
       } else {
-        const result = signupSchema.safeParse({ email, password, fullName });
+        const result = signupSchema.safeParse({ email, password, fullName, confirmPassword });
         if (!result.success) {
           const fieldErrors: Record<string, string> = {};
           result.error.errors.forEach((err) => {
@@ -217,6 +224,33 @@ export default function Auth() {
                       </Button>
                     </div>
                     {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-confirm-password">Konfirmasi Kata Sandi</Label>
+                    <div className="relative">
+                      <Input
+                        id="signup-confirm-password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
+                    {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
                   </div>
                 </TabsContent>
 

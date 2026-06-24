@@ -148,6 +148,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Clear user-specific roast cache on sign out
+    localStorage.removeItem('catetyuk_daily_roast');
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast({

@@ -27,13 +27,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
-import { parseTask, dailySummary, detectAnomaly, rescheduleTasks } from '@/services/ai';
+import { parseTask, dailySummary, detectAnomaly, rescheduleTasks, semanticSearch } from '@/services/ai';
 import { Input as TextInput } from '@/components/ui/input';
 import { ToastAction } from '@/components/ui/toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FocusMode } from '@/components/FocusMode';
 import confetti from 'canvas-confetti';
 import { ModeToggle } from '@/components/mode-toggle';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Progress } from '@/components/ui/progress';
 
 
 interface Todo {
@@ -55,8 +57,126 @@ export default function Todos() {
   const { user, signOut, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [todosLoading, setTodosLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const { data: todos = [], isLoading: todosLoading, error: queryError } = useQuery<Todo[]>({
+    queryKey: ['todos'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('todos')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as Todo[];
+    },
+    enabled: !!user
+  });
+
+  // Search states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchResultIds, setSearchResultIds] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (queryError) {
+      toast({
+        variant: "destructive",
+        title: "Waduh Error",
+        description: (queryError as any).message
+      });
+    }
+  }, [queryError, toast]);
+
+  // React Query Mutations
+  const insertMutation = useMutation({
+    mutationFn: async (newTodo: Omit<Todo, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'completed'>) => {
+      const { error } = await supabase
+        .from('todos')
+        .insert({
+          ...newTodo,
+          user_id: user!.id
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Tugas baru berhasil dibuat!" });
+      queryClient.invalidateQueries({ queryKey: ['todos'] });
+      setFormData({ title: '', description: '', priority: 'medium', category: '', due_date: null });
+      setAiHints(null);
+      setNlInput('');
+      setDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({ variant: "destructive", title: "Gagal membuat tugas", description: error.message });
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (updatedTodo: Partial<Todo> & { id: string }) => {
+      const { error } = await supabase
+        .from('todos')
+        .update(updatedTodo)
+        .eq('id', updatedTodo.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Tugas berhasil diupdate, mantap!" });
+      queryClient.invalidateQueries({ queryKey: ['todos'] });
+      setFormData({ title: '', description: '', priority: 'medium', category: '', due_date: null });
+      setEditingTodo(null);
+      setDialogOpen(false);
+      setAiHints(null);
+      setNlInput('');
+    },
+    onError: (error: any) => {
+      toast({ variant: "destructive", title: "Gagal mengupdate tugas", description: error.message });
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('todos')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Tugas berhasil dihapus, bye-bye!" });
+      queryClient.invalidateQueries({ queryKey: ['todos'] });
+    },
+    onError: (error: any) => {
+      toast({ variant: "destructive", title: "Gagal menghapus tugas", description: error.message });
+    }
+  });
+
+  const toggleCompleteMutation = useMutation({
+    mutationFn: async ({ id, completed }: { id: string, completed: boolean }) => {
+      const { error } = await supabase
+        .from('todos')
+        .update({ completed })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onMutate: async ({ id, completed }) => {
+      await queryClient.cancelQueries({ queryKey: ['todos'] });
+      const previousTodos = queryClient.getQueryData<Todo[]>(['todos']);
+      queryClient.setQueryData<Todo[]>(['todos'], (old) =>
+        old ? old.map((t) => (t.id === id ? { ...t, completed } : t)) : []
+      );
+      return { previousTodos };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousTodos) {
+        queryClient.setQueryData(['todos'], context.previousTodos);
+      }
+      toast({ variant: "destructive", title: "Gagal memperbarui status", description: err.message });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['todos'] });
+    }
+  });
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
   const [formData, setFormData] = useState({
@@ -105,7 +225,6 @@ export default function Todos() {
       navigate('/auth');
       return;
     }
-    fetchTodos();
   }, [user, authLoading, navigate]);
 
   // Handle daily inline roast (100% lokal, tanpa API)
@@ -167,24 +286,40 @@ export default function Todos() {
     }
   }, [location.search]);
 
-  const fetchTodos = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('todos')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setTodos((data || []) as Todo[]);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Waduh Error",
-        description: error.message
-      });
-    } finally {
-      setTodosLoading(false);
+  const handleSemanticSearch = async () => {
+    if (!searchQuery.trim()) {
+      setSearchResultIds(null);
+      return;
     }
+    try {
+      setSearchLoading(true);
+      const results = await semanticSearch(searchQuery, todos);
+      if (Array.isArray(results)) {
+        setSearchResultIds(results);
+        if (results.length === 0) {
+          toast({ description: "Gak nemu tugas yang cocok dengan pencarian lo." });
+        } else {
+          toast({ description: `Nemu ${results.length} tugas yang cocok!` });
+        }
+      } else {
+        setSearchResultIds([]);
+      }
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Pencarian Gagal', description: error.message });
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResultIds(null);
+  };
+
+  const isDueSoon = (todo: Todo) => {
+    if (!todo.due_date || todo.completed) return false;
+    const diff = new Date(todo.due_date).getTime() - new Date().getTime();
+    return diff > 0 && diff < 24 * 60 * 60 * 1000;
   };
 
   // Get unique categories and tags for filter dropdowns
@@ -194,6 +329,11 @@ export default function Todos() {
   // Filter and sort function
   const filterAndSortTodos = (todosToFilter: Todo[]) => {
     let filtered = [...todosToFilter];
+
+    // Apply semantic search filter
+    if (searchResultIds !== null) {
+      filtered = filtered.filter(t => searchResultIds.includes(t.id));
+    }
 
     // Apply priority filter
     if (filterPriority !== 'all') {
@@ -236,7 +376,7 @@ export default function Todos() {
     // 3. Sorting
     return filtered.sort((a, b) => {
       switch (sortBy) {
-        case 'urgency':
+        case 'urgency': {
           // Priority order: high > medium > low
           const priorityOrder = { high: 3, medium: 2, low: 1 };
           const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
@@ -252,10 +392,12 @@ export default function Todos() {
 
           // If no deadline, sort by created date (newest first)
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        }
 
-        case 'priority':
+        case 'priority': {
           const pOrder = { high: 3, medium: 2, low: 1 };
           return pOrder[b.priority] - pOrder[a.priority];
+        }
 
         case 'due_date':
           // Tasks with no due date go to the end
@@ -274,15 +416,14 @@ export default function Todos() {
           return 0;
       }
     });
-
-    return filtered;
   };
 
-  const applyAIAssist = async () => {
-    if (!nlInput.trim()) return;
+  const applyAIAssist = async (textToParse?: string) => {
+    const text = textToParse || nlInput;
+    if (!text.trim()) return;
     try {
       setAiLoading(true);
-      const result = await parseTask(nlInput.trim());
+      const result = await parseTask(text.trim());
 
       // Parse due_date if available
       let parsedDueDate: Date | null = null;
@@ -325,8 +466,7 @@ export default function Todos() {
   };
 
   const startVoiceRecording = () => {
-    // @ts-ignore - SpeechRecognition is not standard across all browsers
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       toast({ variant: 'destructive', title: 'Waduh', description: 'Browser lo gak support fitur suara nih (coba pake Chrome).' });
@@ -349,11 +489,7 @@ export default function Todos() {
       setIsRecording(false);
       // Automatically trigger AI assist right after recording
       setTimeout(() => {
-        // We set input first, but state is async, so we directly parse transcript
-        setNlInput(transcript);
-        const dummyEvent = new Event('submit') as unknown as React.FormEvent;
-        // In a real scenario we might want to manually invoke parseTask here 
-        // but for safety we let the user click the button to confirm the parsed text
+        applyAIAssist(transcript);
       }, 500);
     };
 
@@ -377,53 +513,31 @@ export default function Todos() {
       setSubmitLoading(true);
       if (editingTodo) {
         const prev = { ...editingTodo };
-        const { error } = await supabase
-          .from('todos')
-          .update({
-            title: formData.title,
-            description: formData.description || null,
-            priority: formData.priority,
-            category: formData.category || null,
-            due_date: formData.due_date ? formData.due_date.toISOString() : null,
-            estimated_duration_minutes: aiHints?.estimatedMinutes || null,
-            tags: aiHints?.suggestions?.subtasks || null
-          })
-          .eq('id', editingTodo.id);
-
-        if (error) throw error;
-        toast({ title: "Tugas berhasil diupdate, mantap!" });
+        await updateMutation.mutateAsync({
+          id: editingTodo.id,
+          title: formData.title,
+          description: formData.description || null,
+          priority: formData.priority,
+          category: formData.category || null,
+          due_date: formData.due_date ? formData.due_date.toISOString() : null,
+          estimated_duration_minutes: aiHints?.estimatedMinutes || null,
+          tags: aiHints?.suggestions?.subtasks || null
+        });
         const log = auditLogRef.current[prev.id] || [];
         auditLogRef.current[prev.id] = [...log, { snapshot: prev, timestamp: new Date().toISOString(), actor: user!.id }];
       } else {
-        const { error } = await supabase
-          .from('todos')
-          .insert({
-            title: formData.title,
-            description: formData.description || null,
-            priority: formData.priority,
-            category: formData.category || null,
-            user_id: user!.id,
-            due_date: formData.due_date ? formData.due_date.toISOString() : null,
-            estimated_duration_minutes: aiHints?.estimatedMinutes || null,
-            tags: aiHints?.suggestions?.subtasks || null
-          });
-
-        if (error) throw error;
-        toast({ title: "Tugas baru berhasil dibuat!" });
+        await insertMutation.mutateAsync({
+          title: formData.title,
+          description: formData.description || null,
+          priority: formData.priority,
+          category: formData.category || null,
+          due_date: formData.due_date ? formData.due_date.toISOString() : null,
+          estimated_duration_minutes: aiHints?.estimatedMinutes || null,
+          tags: aiHints?.suggestions?.subtasks || null
+        });
       }
-
-      setFormData({ title: '', description: '', priority: 'medium', category: '', due_date: null });
-      setEditingTodo(null);
-      setDialogOpen(false);
-      setAiHints(null);
-      setNlInput('');
-      fetchTodos();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Waduh Error",
-        description: error.message
-      });
+    } catch {
+      // Error is handled by mutations
     } finally {
       setSubmitLoading(false);
     }
@@ -471,7 +585,7 @@ export default function Todos() {
 
         if (successCount > 0) {
           toast({ title: 'Jadwal Pintar AI', description: `Berhasil mengatur ulang ${successCount} tugas!` });
-          fetchTodos(); // Refresh list
+          queryClient.invalidateQueries({ queryKey: ['todos'] });
         }
       }
     } catch (error: any) {
@@ -502,29 +616,11 @@ export default function Todos() {
       }
     }
 
-    // Optimistic update
-    setTodos(prev => prev.map(t =>
-      t.id === todo.id ? { ...t, completed: updatedStatus } : t
-    ));
-
     try {
       setCompleteLoading(prev => ({ ...prev, [todo.id]: true }));
-      const { error } = await supabase
-        .from('todos')
-        .update({ completed: updatedStatus })
-        .eq('id', todo.id);
-
-      if (error) {
-        // Revert on error
-        setTodos(prev => prev.map(t =>
-          t.id === todo.id ? { ...t, completed: !updatedStatus } : t
-        ));
-        toast({
-          variant: "destructive",
-          title: "Gagal Update",
-          description: error.message
-        });
-      }
+      await toggleCompleteMutation.mutateAsync({ id: todo.id, completed: updatedStatus });
+    } catch {
+      // Error is handled by mutations
     } finally {
       setCompleteLoading(prev => ({ ...prev, [todo.id]: false }));
     }
@@ -560,20 +656,9 @@ export default function Todos() {
   const deleteTodo = async (id: string) => {
     try {
       setDeleteLoading(prev => ({ ...prev, [id]: true }));
-      const { error } = await supabase
-        .from('todos')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      toast({ title: "Tugas berhasil dihapus, bye-bye!" });
-      fetchTodos();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Waduh Error",
-        description: error.message
-      });
+      await deleteMutation.mutateAsync(id);
+    } catch {
+      // Error is handled by mutations
     } finally {
       setDeleteLoading(prev => ({ ...prev, [id]: false }));
     }
@@ -693,7 +778,40 @@ export default function Todos() {
               </div>
             </div>
 
-            {/* Search Bar - Removed */}
+            {/* Search Bar restored */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cari tugas pake perasaan (misal: kerjaan klien)..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSemanticSearch();
+                  }}
+                  className="pl-9 pr-8 bg-card"
+                  aria-label="Cari tugas semantik"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs font-semibold"
+                    aria-label="Reset pencarian"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <Button
+                onClick={handleSemanticSearch}
+                loading={searchLoading}
+                className="w-full sm:w-auto bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20"
+                variant="secondary"
+              >
+                Cari AI
+              </Button>
+            </div>
+
             <div className="flex flex-col sm:flex-row gap-2">
               {/* AI Features - Horizontal Scroll on Mobile */}
               <div className="flex gap-2 overflow-x-auto pb-1">
@@ -1066,7 +1184,13 @@ export default function Todos() {
                 </Card>
               ) : (
                 activeTodos.map((todo) => (
-                  <Card key={todo.id} className="hover:shadow-md transition-shadow">
+                  <Card 
+                    key={todo.id} 
+                    className={cn(
+                      "hover:shadow-md transition-shadow",
+                      isDueSoon(todo) && "border-amber-500/50 shadow-sm shadow-amber-500/10 animate-[pulse_3s_infinite]"
+                    )}
+                  >
                     <CardHeader className="pb-3">
                       <div className="flex flex-col gap-3">
                         <div className="flex items-start gap-3">
@@ -1103,7 +1227,10 @@ export default function Todos() {
                                 <Badge variant="outline">{todo.category}</Badge>
                               )}
                               {todo.due_date && (
-                                <Badge variant="outline" className="gap-1">
+                                <Badge 
+                                  variant="outline" 
+                                  className={cn("gap-1", isDueSoon(todo) && "bg-amber-500/10 text-amber-600 border-amber-500/30 font-semibold")}
+                                >
                                   <Calendar className="h-3 w-3" />
                                   {format(new Date(todo.due_date), "dd MMM, HH:mm", { locale: idLocale })}
                                 </Badge>
@@ -1391,31 +1518,86 @@ export default function Todos() {
         </div>
         {summaryOpen && dailyData && (
           <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
-            <DialogContent className="max-h-[80vh] flex flex-col">
-              <DialogHeader>
-                <DialogTitle>Ringkasan Harian</DialogTitle>
-                <DialogDescription>Rangkuman tugas dan rekomendasi</DialogDescription>
+            <DialogContent className="w-full max-w-lg max-h-[85vh] flex flex-col p-6 rounded-xl overflow-hidden bg-background">
+              <DialogHeader className="pb-4 border-b">
+                <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                  <Sparkles className="h-6 w-6 text-primary animate-pulse" />
+                  Ringkasan Pintar AI
+                </DialogTitle>
+                <DialogDescription>
+                  Rangkuman produktivitas dan rekomendasi harian lo
+                </DialogDescription>
               </DialogHeader>
-              <div className="flex-1 overflow-y-auto p-4 border rounded-md">
-                <div className="space-y-3 pb-4">
-                  <div>
-                    <Label>Urgent</Label>
-                    <div className="mt-2 space-y-1">{(dailyData.urgent || []).map((u: any, i: number) => (<div key={i} className="text-red-500">• {u.title}</div>))}</div>
-                  </div>
-                  <div>
-                    <Label>Hari Ini</Label>
-                    <div className="mt-2 space-y-1">{(dailyData.today_list || []).map((t: any, i: number) => (<div key={i}>• {t.title}</div>))}</div>
-                  </div>
-                  <div>
-                    <Label>Progres</Label>
-                    <div className="mt-1 text-muted-foreground">{dailyData.progress_summary}</div>
-                  </div>
-                  <div>
-                    <Label>Rekomendasi</Label>
-                    <div className="mt-2 space-y-1">{(dailyData.recommendations || []).map((r: any, i: number) => (<div key={i}>• {r}</div>))}</div>
-                  </div>
+              <ScrollArea className="flex-1 pr-3 mt-4">
+                <div className="space-y-6 pb-6">
+                  {/* Progress Indicator */}
+                  {todayTasks.length > 0 && (
+                    <div className="bg-secondary/30 p-4 rounded-xl border">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-semibold">Progres Target Hari Ini</span>
+                        <span className="text-xs text-muted-foreground font-bold">
+                          {completedTodayTasks.length} dari {todayTasks.length} Selesai
+                        </span>
+                      </div>
+                      <Progress value={(completedTodayTasks.length / todayTasks.length) * 100} className="h-2.5" />
+                    </div>
+                  )}
+
+                  {/* Urgent Card */}
+                  {dailyData.urgent && dailyData.urgent.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-red-500">Mendesak & Penting 🚨</Label>
+                      <div className="grid gap-2">
+                        {dailyData.urgent.map((u: any, i: number) => (
+                          <div key={i} className="p-3 bg-red-500/10 text-red-700 dark:text-red-400 rounded-lg border border-red-500/20 text-sm font-medium flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-red-500 flex-shrink-0 animate-ping" />
+                            {u.title}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Today List */}
+                  {dailyData.today_list && dailyData.today_list.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-primary">Rencana Hari Ini 📋</Label>
+                      <div className="bg-card border rounded-lg divide-y">
+                        {dailyData.today_list.map((t: any, i: number) => (
+                          <div key={i} className="p-3 text-sm flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-muted-foreground/50" />
+                            <span>{t.title}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Progress Summary */}
+                  {dailyData.progress_summary && (
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Analisis AI 💡</Label>
+                      <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 text-sm leading-relaxed">
+                        {dailyData.progress_summary}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recommendations */}
+                  {dailyData.recommendations && dailyData.recommendations.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-green-600">Rekomendasi Produktivitas ✨</Label>
+                      <div className="grid gap-2">
+                        {dailyData.recommendations.map((r: any, i: number) => (
+                          <div key={i} className="p-3 bg-green-500/5 text-green-700 dark:text-green-400 rounded-lg border border-green-500/20 text-sm leading-snug">
+                            💡 {r}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
+              </ScrollArea>
             </DialogContent>
           </Dialog>
         )}
