@@ -31,7 +31,7 @@ export default function Menu() {
     const menuItems = [
         {
             icon: Shield,
-            label: 'Kebijakan Privasi',
+            label: 'Kebijakan Privasi Data',
             path: '/privacy'
         },
         {
@@ -41,12 +41,12 @@ export default function Menu() {
         },
         {
             icon: History,
-            label: 'Catatan Rilis & Changelog',
+            label: 'Catatan Rilis & Fitur Baru',
             path: '/changelog'
         },
         {
             icon: Mail,
-            label: 'Bantuan & Kontak',
+            label: 'Kontak & Ngobrol Santai',
             path: '/contact'
         }
     ];
@@ -63,7 +63,7 @@ export default function Menu() {
                     >
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
-                    <h1 className="text-xl font-bold tracking-tight">Menu Aplikasi</h1>
+                    <h1 className="text-xl font-bold tracking-tight">Menu Utama</h1>
                 </div>
 
                 {/* Profile Shortcut Card */}
@@ -85,7 +85,7 @@ export default function Menu() {
                             {user?.email}
                         </p>
                         <p className="text-[11px] text-primary mt-0.5 font-medium">
-                            Kelola Profil & Keamanan →
+                            Lihat & Edit Profil Lo →
                         </p>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -99,7 +99,7 @@ export default function Menu() {
                     <div className="bg-card border border-border/80 p-3.5 rounded-2xl flex items-center justify-between gap-4 shadow-sm">
                         <div className="flex items-center gap-2 text-xs font-medium">
                             <Palette className="h-4 w-4 text-primary" />
-                            <span>Pilih Skema Warna</span>
+                            <span>Pilih Vibe Tema</span>
                         </div>
                         <Select value={theme} onValueChange={(val) => setTheme(val)}>
                             <SelectTrigger id="theme-select" className="w-[160px] h-9 text-xs rounded-xl bg-background">
@@ -110,7 +110,7 @@ export default function Menu() {
                                 <SelectItem value="dark">Gelap (Dark)</SelectItem>
                                 <SelectItem value="neon-dark">Neon Cyberpunk</SelectItem>
                                 <SelectItem value="deep-ocean">Deep Ocean</SelectItem>
-                                <SelectItem value="system">Mengikuti Sistem</SelectItem>
+                                <SelectItem value="system">Ikut Sistem HP</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -119,7 +119,7 @@ export default function Menu() {
                 {/* Navigation Links Group */}
                 <div className="space-y-2">
                     <h3 className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Informasi & Bantuan
+                        Info & Bantuan
                     </h3>
                     <div className="bg-card rounded-2xl border border-border/80 shadow-sm overflow-hidden divide-y divide-border/60">
                         {menuItems.map((item) => (
@@ -146,7 +146,7 @@ export default function Menu() {
                         onClick={handleSignOut}
                     >
                         <LogOut className="h-4 w-4" />
-                        Keluar dari Akun
+                        Cabut / Keluar Akun
                     </Button>
                 </div>
             </div>

@@ -52,10 +52,10 @@ export function AppLayout({
 
   const getGreeting = () => {
     const hour = now.getHours();
-    if (hour < 11) return 'Selamat Pagi';
-    if (hour < 15) return 'Selamat Siang';
-    if (hour < 18) return 'Selamat Sore';
-    return 'Selamat Malam';
+    if (hour < 11) return 'Pagi';
+    if (hour < 15) return 'Siang';
+    if (hour < 18) return 'Sore';
+    return 'Malam';
   };
 
   const userName = user?.user_metadata?.full_name?.split(' ')[0] || 'Mentor';
@@ -200,7 +200,7 @@ export function AppLayout({
         <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/60 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
           <div className="space-y-0.5">
             <div className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-1.5">
-              <span>{getGreeting()}, {userName}!</span>
+              <span>{getGreeting()}, {userName}! Gas task apa nih?</span>
             </div>
             <p className="text-[11px] sm:text-xs text-muted-foreground">
               {dateFormatted}

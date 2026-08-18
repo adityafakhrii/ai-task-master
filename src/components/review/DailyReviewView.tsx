@@ -66,10 +66,10 @@ export function DailyReviewView({
       {/* Header */}
       <div className="space-y-1">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-          Daily Review
+          Daily Review / Refleksi Hari Ini
         </h1>
         <p className="text-xs sm:text-sm text-muted-foreground">
-          Evaluasi pencapaian hari ini, rapikan task tertunda, dan susun fokus untuk esok hari.
+          Cek pencapaian lo hari ini, bersihin task yang nyangkut, trus siapin mental buat besok!
         </p>
       </div>
 
@@ -78,7 +78,7 @@ export function DailyReviewView({
         <div className="p-4 rounded-2xl bg-card border border-border shadow-sm space-y-1">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-            <span>Task Selesai</span>
+            <span>Udah Beres</span>
           </div>
           <div className="text-2xl sm:text-3xl font-bold text-foreground">
             {completedToday.length}
@@ -88,7 +88,7 @@ export function DailyReviewView({
         <div className="p-4 rounded-2xl bg-card border border-border shadow-sm space-y-1">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Clock className="h-4 w-4 text-amber-500" />
-            <span>Task Belum Selesai</span>
+            <span>Masih Nyangkut</span>
           </div>
           <div className="text-2xl sm:text-3xl font-bold text-foreground">
             {incompleteToday.length}
@@ -111,7 +111,7 @@ export function DailyReviewView({
         <div className="flex items-center justify-between">
           <div className="inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider">
             <Sparkles className="h-4 w-4 text-amber-500" />
-            <span>AI Productivity Reflection</span>
+            <span>Insight & Refleksi AI</span>
           </div>
 
           <Button
@@ -122,7 +122,7 @@ export function DailyReviewView({
             className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1"
           >
             {loadingAi ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-            <span>Refresh AI</span>
+            <span>Tanya AI Lagi</span>
           </Button>
         </div>
 
@@ -143,7 +143,7 @@ export function DailyReviewView({
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Sedang menganalisis performa kerja harian...
+            Lagi menganalisis performa kerja lo hari ini...
           </p>
         )}
       </div>
@@ -152,16 +152,16 @@ export function DailyReviewView({
       <div className="space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-2">
           <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
-            <span>Belum Selesai</span>
-            <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs">
+            <span>Beresin Task yang Nyangkut</span>
+            <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-semibold">
               {incompleteToday.length}
             </span>
           </h2>
         </div>
 
         {incompleteToday.length === 0 ? (
-          <div className="p-6 rounded-2xl border border-dashed text-center text-xs text-muted-foreground">
-            Luar biasa! Tidak ada task yang tertunda hari ini.
+          <div className="p-6 rounded-2xl border border-dashed text-center text-xs sm:text-sm text-muted-foreground">
+            Gokil! Gak ada task yang nyangkut hari ini. Good job!
           </div>
         ) : (
           <div className="space-y-3">
@@ -206,7 +206,7 @@ export function DailyReviewView({
                     title="Kembalikan ke Inbox"
                   >
                     <Inbox className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span>Ke Inbox</span>
+                    <span>Balikin ke Inbox</span>
                   </Button>
 
                   <Button
@@ -229,15 +229,15 @@ export function DailyReviewView({
       <div className="space-y-4 pt-4 border-t border-border">
         <div className="flex items-center justify-between border-b border-border pb-2">
           <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
-            <span>Selesai Hari Ini</span>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs">
+            <span>Udah Selesai Hari Ini</span>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
               {completedToday.length}
             </span>
           </h2>
         </div>
 
         {completedToday.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Belum ada task yang diselesaikan hari ini.</p>
+          <p className="text-xs text-muted-foreground">Belum ada task yang lo selesaikan hari ini.</p>
         ) : (
           <div className="space-y-2">
             {completedToday.map(task => (
@@ -258,7 +258,7 @@ export function DailyReviewView({
                   onClick={() => onToggleComplete(task.id, false)}
                   className="h-7 text-[11px] text-muted-foreground hover:text-foreground"
                 >
-                  Batal Selesai
+                  Belum Selesai Deng
                 </Button>
               </div>
             ))}

@@ -91,13 +91,13 @@ export function AllTasksView({
             </span>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            Daftar lengkap semua tugas, backlog, dan arsip riwayat.
+            Daftar lengkap semua tugas, backlog, dan arsip riwayat lo.
           </p>
         </div>
 
         <Button onClick={onQuickAdd} size="sm" className="h-9 px-3.5 rounded-xl gap-1.5 text-xs font-semibold shadow-sm">
           <Plus className="h-4 w-4" />
-          <span>Tambah Task</span>
+          <span>+ Tambah Task</span>
         </Button>
       </div>
 
@@ -109,7 +109,7 @@ export function AllTasksView({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari task berdasarkan judul, deskripsi, atau kategori..."
+            placeholder="Cari task berdasarkan judul, catatan, atau kategori..."
             className="pl-9 pr-9 h-10 text-xs sm:text-sm rounded-xl border-border bg-background"
           />
           {search && (
@@ -130,8 +130,8 @@ export function AllTasksView({
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="active">Aktif</SelectItem>
-              <SelectItem value="completed">Selesai</SelectItem>
+              <SelectItem value="active">Aktif Doang</SelectItem>
+              <SelectItem value="completed">Udah Kelar</SelectItem>
               <SelectItem value="all">Semua Status</SelectItem>
             </SelectContent>
           </Select>
@@ -143,9 +143,9 @@ export function AllTasksView({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua Prioritas</SelectItem>
-              <SelectItem value="high">High Priority</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="low">Low / Quick Win</SelectItem>
+              <SelectItem value="high">Penting Banget</SelectItem>
+              <SelectItem value="medium">Sedang</SelectItem>
+              <SelectItem value="low">Sat-Set</SelectItem>
             </SelectContent>
           </Select>
 
@@ -170,9 +170,9 @@ export function AllTasksView({
               <SelectValue placeholder="Urutkan" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="urgency">Urgensi & Prioritas</SelectItem>
-              <SelectItem value="due_date">Tenggat Waktu</SelectItem>
-              <SelectItem value="created_at">Terbaru Dibuat</SelectItem>
+              <SelectItem value="urgency">Paling Urgent</SelectItem>
+              <SelectItem value="due_date">Deadline Terdekat</SelectItem>
+              <SelectItem value="created_at">Baru Dibuat</SelectItem>
               <SelectItem value="title">Judul (A-Z)</SelectItem>
             </SelectContent>
           </Select>
@@ -182,7 +182,7 @@ export function AllTasksView({
       {/* Task List */}
       {sorted.length === 0 ? (
         <div className="p-8 rounded-2xl border border-dashed text-center text-xs sm:text-sm text-muted-foreground">
-          Tidak ada task yang cocok dengan filter atau pencarian.
+          Gak nemu task yang cocok sama filter atau pencarian lo nih.
         </div>
       ) : (
         <div className="grid gap-2.5">

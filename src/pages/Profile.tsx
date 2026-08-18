@@ -323,7 +323,7 @@ export default function Profile() {
                         Pengaturan Akun
                     </h1>
                     <p className="text-xs sm:text-sm text-muted-foreground">
-                        Kelola profil, preferensi tema, dan keamanan akun Anda.
+                        Kelola profil, preferensi tema, dan keamanan akun lo di sini.
                     </p>
                 </div>
 
@@ -333,10 +333,10 @@ export default function Profile() {
                         <CardHeader className="pb-4">
                             <div className="flex items-center gap-2">
                                 <User className="h-4 w-4 text-primary" />
-                                <CardTitle className="text-base font-semibold">Informasi Profil</CardTitle>
+                                <CardTitle className="text-base font-semibold">Info Profil Lo</CardTitle>
                             </div>
                             <CardDescription className="text-xs">
-                                Perbarui identitas dan foto akun Anda.
+                                Update nama dan foto profil lo biar makin kece.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>

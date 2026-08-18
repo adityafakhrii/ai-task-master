@@ -56,8 +56,8 @@ export function FocusMode({
         confetti({ particleCount: 50, spread: 60 });
       } catch {}
       toast({
-        title: 'Sesi Fokus Selesai! 👏',
-        description: 'Bagus sekali! Ambil nafas sebentar atau lanjutkan jika belum selesai.'
+        title: 'Sesi Fokus Beres!',
+        description: 'Gokil, lo fokus banget barusan! Ambil nafas bentar atau lanjut gas lagi.'
       });
     }
 
@@ -120,9 +120,9 @@ export function FocusMode({
         onUpdateSubtasks(task.id, serialized);
       }
 
-      toast({ title: 'AI berhasil memecah subtask!' });
+      toast({ title: 'Mantap! Task berhasil dipecah jadi langkah kecil' });
     } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Gagal memecah task', description: err.message });
+      toast({ variant: 'destructive', title: 'Waduh gagal mecah task', description: err.message });
     } finally {
       setIsSlicingLoading(false);
     }
@@ -145,7 +145,7 @@ export function FocusMode({
       <div className="flex items-center justify-between max-w-4xl w-full mx-auto">
         <div className="flex items-center gap-2">
           <span className="px-3 py-1 rounded-full bg-primary/10 text-primary font-semibold text-xs uppercase tracking-wider">
-            Focus Mode
+            Mode Fokus / Deep Work
           </span>
           {task.category && (
             <span className="text-xs text-muted-foreground">• {task.category}</span>
@@ -159,7 +159,7 @@ export function FocusMode({
           className="h-9 px-3 text-xs gap-1.5 text-muted-foreground hover:text-foreground rounded-xl"
         >
           <X className="h-4 w-4" />
-          <span>Keluar Fokus</span>
+          <span>Keluar Sesi</span>
         </Button>
       </div>
 
@@ -175,7 +175,7 @@ export function FocusMode({
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary/80 text-secondary-foreground text-xs sm:text-sm font-medium border border-border">
               <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
               <span>
-                <strong>Why now?</strong> {whyNow}
+                <strong>Kenapa sekarang?</strong> {whyNow}
               </span>
             </div>
           )}
@@ -195,7 +195,7 @@ export function FocusMode({
               className="h-14 px-8 rounded-2xl text-base font-semibold shadow-md gap-2"
             >
               {isActive ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current" />}
-              <span>{isActive ? 'Pause' : 'Start Timer'}</span>
+              <span>{isActive ? 'Pause Dulu' : 'Gas Timer!'}</span>
             </Button>
 
             <Button
@@ -232,7 +232,7 @@ export function FocusMode({
         <div className="text-left bg-card rounded-2xl border border-border p-5 space-y-4 shadow-sm">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Subtasks & Langkah Kerja ({subtasks.filter(s => s.completed).length}/{subtasks.length})
+              Langkah Kerja ({subtasks.filter(s => s.completed).length}/{subtasks.length})
             </h3>
 
             {subtasks.length === 0 && (
@@ -244,7 +244,7 @@ export function FocusMode({
                 className="h-7 text-xs bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 gap-1 rounded-lg"
               >
                 <Sparkles className="h-3 w-3 text-amber-500" />
-                <span>{isSlicingLoading ? 'Menganalisis...' : 'Pecah pake AI'}</span>
+                <span>{isSlicingLoading ? 'Lagi mecah...' : 'Pecah pake AI'}</span>
               </Button>
             )}
           </div>
@@ -284,7 +284,7 @@ export function FocusMode({
                   addManualSubtask();
                 }
               }}
-              placeholder="Tambah subtask..."
+              placeholder="Tambah checklist baru..."
               className="h-9 px-3 text-xs bg-background border border-border rounded-xl flex-1 focus:outline-none focus:ring-1 focus:ring-primary"
             />
             <Button
@@ -303,12 +303,12 @@ export function FocusMode({
         <div className="text-left bg-card/60 rounded-2xl border border-border p-4 space-y-2">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             <FileText className="h-3.5 w-3.5" />
-            <span>Catatan Sesi (Scratchpad)</span>
+            <span>Coretan Kilat (Scratchpad)</span>
           </div>
           <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Tulis ide kilat, link, atau catatan sementara saat fokus..."
+            placeholder="Tulis ide kilat, link penting, atau coretan sementara..."
             className="min-h-[70px] text-xs resize-none rounded-xl border-border bg-background/50"
           />
         </div>
@@ -321,7 +321,7 @@ export function FocusMode({
           onClick={onClose}
           className="flex-1 h-12 rounded-xl text-xs sm:text-sm"
         >
-          Tunda / Kembali
+          Nanti Dulu / Keluar
         </Button>
 
         <Button
@@ -329,7 +329,7 @@ export function FocusMode({
           className="flex-1 h-12 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-md"
         >
           <CheckCircle2 className="h-4 w-4" />
-          <span>Tandai Selesai</span>
+          <span>Tandai Kelar!</span>
         </Button>
       </div>
     </div>

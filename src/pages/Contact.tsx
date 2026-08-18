@@ -56,7 +56,7 @@ export default function Contact() {
                         Bantuan & Kontak
                     </h1>
                     <p className="text-xs sm:text-sm text-muted-foreground">
-                        Punya saran fitur, menemukan kendala, atau ingin berkolaborasi? Hubungi kami melalui saluran berikut.
+                        Punya kritik pedes, nemu bug ngeselin, atau mau ngajak collab? Gas kontak gue lewat link di bawah ya!
                     </p>
                 </div>
 

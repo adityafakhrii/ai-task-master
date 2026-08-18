@@ -63,10 +63,10 @@ export function AIPrioritizerModal({
         <DialogHeader className="space-y-1 text-left">
           <DialogTitle className="text-xl font-bold flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-amber-500" />
-            <span>Prioritize My Day (AI Copilot)</span>
+            <span>Tanya AI Prioritas Harian</span>
           </DialogTitle>
           <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
-            AI akan menganalisis semua tugas aktif, deadline, dan dampaknya ke bootcamp untuk menyusun urutan eksekusi paling optimal.
+            Bingung mau mulai dari mana? AI bakal racik urutan eksekusi paling sat-set biar kerjaan bootcamp lo kelar tepat waktu.
           </DialogDescription>
         </DialogHeader>
 
@@ -74,7 +74,7 @@ export function AIPrioritizerModal({
           {!prioritizedResult && (
             <div className="rounded-xl border border-dashed border-border p-6 text-center space-y-4">
               <p className="text-xs sm:text-sm text-muted-foreground">
-                Terdapat <strong>{tasks.length} task aktif</strong> hari ini. Klik tombol di bawah untuk meminta AI menyusun roadmap eksekusi terbaik.
+                Ada <strong>{tasks.length} task aktif</strong> nih. Klik tombol di bawah biar AI susunin roadmap eksekusi paling mantap buat lo!
               </p>
               <Button
                 onClick={handleRunPrioritization}
@@ -84,12 +84,12 @@ export function AIPrioritizerModal({
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Menganalisis Urutan Prioritas...</span>
+                    <span>Lagi racik urutan terbaik...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="h-4 w-4 text-amber-400" />
-                    <span>Susun Urutan Terbaik Sekarang</span>
+                    <span>Gas Minta AI Urutin Sekarang!</span>
                   </>
                 )}
               </Button>
@@ -102,7 +102,7 @@ export function AIPrioritizerModal({
               <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 text-xs sm:text-sm leading-relaxed space-y-1">
                 <div className="font-semibold text-primary flex items-center gap-1.5">
                   <Lightbulb className="h-4 w-4 text-amber-500" />
-                  Strategi Eksekusi Rekomendasi AI:
+                  Strategi Eksekusi dari AI:
                 </div>
                 <p className="text-foreground/90">{prioritizedResult.strategy_summary}</p>
               </div>
@@ -154,7 +154,7 @@ export function AIPrioritizerModal({
                 <div className="p-3 rounded-xl bg-muted/50 border border-border text-xs text-muted-foreground flex items-start gap-1.5">
                   <Lightbulb className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                   <div>
-                    <strong>Saran Tambahan: </strong>
+                    <strong>Tips Tambahan: </strong>
                     <span>{prioritizedResult.quick_wins_suggestion}</span>
                   </div>
                 </div>
@@ -180,7 +180,7 @@ export function AIPrioritizerModal({
               className="rounded-xl text-xs h-10 font-semibold px-5 shadow-sm gap-2"
             >
               <Play className="h-3.5 w-3.5 fill-current" />
-              <span>Mulai Task #1 Sekarang</span>
+              <span>Gas Task #1 Sekarang</span>
             </Button>
           )}
         </DialogFooter>

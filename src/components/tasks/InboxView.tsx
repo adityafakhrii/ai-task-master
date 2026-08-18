@@ -50,7 +50,7 @@ export function InboxView({
           </span>
         </div>
         <p className="text-xs sm:text-sm text-muted-foreground">
-          Tempat menampung ide dan tugas mentah sebelum dijadwalkan ke target harian.
+          Tempat nampung ide & task mentah biar gak numpuk di kepala.
         </p>
       </div>
 
@@ -60,7 +60,7 @@ export function InboxView({
           <Input
             value={fastText}
             onChange={(e) => setFastText(e.target.value)}
-            placeholder="Ketik ide atau task baru lalu tekan Enter..."
+            placeholder="Ketik ide atau task mentah lalu pencet Enter..."
             className="h-11 px-4 text-sm rounded-xl border-border bg-card shadow-sm"
           />
         </div>
@@ -89,10 +89,10 @@ export function InboxView({
             <CheckCircle2 className="h-6 w-6 text-emerald-500" />
           </div>
           <h3 className="text-base font-semibold text-foreground">
-            Inbox Bersih!
+            Inbox Lo Bersih Kinclong!
           </h3>
           <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto">
-            Semua task telah terorganisir ke Today atau terjadwal. Ketik di atas untuk menangkap task baru secara cepat.
+            Gak ada task mentah yang tertinggal. Kalo ada ide liar baru, langsung ketik di atas ya!
           </p>
         </div>
       ) : (

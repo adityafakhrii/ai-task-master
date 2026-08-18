@@ -124,7 +124,7 @@ export default function Auth() {
               CatetYuk
             </CardTitle>
             <CardDescription className="text-xs sm:text-sm text-muted-foreground">
-              Personal execution copilot untuk pekerjaan harian Anda.
+              Atur tugas lo dibantu AI, biar makin sat-set dan produktif!
             </CardDescription>
           </CardHeader>
 
@@ -139,7 +139,7 @@ export default function Auth() {
             >
               <TabsList className="grid w-full grid-cols-2 mb-5 h-10 p-1 bg-muted/60 rounded-xl">
                 <TabsTrigger value="login" className="rounded-lg text-xs font-semibold">
-                  Masuk
+                  Masuk Skuy
                 </TabsTrigger>
                 <TabsTrigger value="signup" className="rounded-lg text-xs font-semibold">
                   Daftar Akun
@@ -267,9 +267,9 @@ export default function Auth() {
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : isLogin ? (
-                    'Masuk ke Akun'
+                    'Gas Masuk Sekarang'
                   ) : (
-                    'Daftar Sekarang'
+                    'Daftar Sekarang Skuy'
                   )}
                 </Button>
               </form>
@@ -313,7 +313,7 @@ export default function Auth() {
                   />
                 </svg>
               )}
-              <span>Lanjutkan dengan Google</span>
+              <span>Lanjut pake Akun Google</span>
             </Button>
           </CardContent>
         </Card>

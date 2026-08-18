@@ -18,9 +18,9 @@ const NotFound = () => {
           404
         </div>
         <div className="space-y-1.5">
-          <h1 className="text-2xl font-bold tracking-tight">Halaman Tidak Ditemukan</h1>
+          <h1 className="text-2xl font-bold tracking-tight">404: Nyasar Nih Bos!</h1>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            Alamat yang Anda tuju tidak tersedia atau telah dipindahkan.
+            Halamannya gak ketemu atau udah ilang ditelan bumi. Balik ke dashboard aja yuk!
           </p>
         </div>
         <div className="flex items-center justify-center gap-2 pt-2">
@@ -29,7 +29,7 @@ const NotFound = () => {
             className="rounded-xl text-xs font-semibold gap-2 shadow-sm"
           >
             <Home className="h-4 w-4" />
-            <span>Ke Dashboard</span>
+            <span>Balik ke Dashboard</span>
           </Button>
           <Button
             variant="outline"

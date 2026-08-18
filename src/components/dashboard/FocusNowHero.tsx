@@ -38,14 +38,14 @@ export function FocusNowHero({
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>Semua Tugas Tuntas</span>
+              <span>Semua Tugas Beres!</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-50 flex items-center gap-2">
-              <span>Semua beres. Good job!</span>
+              <span>Beres semua, tinggal santuy!</span>
               <Sparkles className="h-6 w-6 text-amber-400" />
             </h2>
             <p className="text-sm text-slate-300 max-w-lg leading-relaxed">
-              Tidak ada task mendesak yang tertunda. Nikmati waktu istirahat atau masukkan task baru untuk esok hari.
+              Gak ada task mendesak yang tertunda nih. Mau ngopi dulu atau siapin task baru buat besok?
             </p>
           </div>
 
@@ -56,7 +56,7 @@ export function FocusNowHero({
               className="bg-white text-slate-950 hover:bg-slate-100 font-semibold shadow-lg rounded-xl h-11 px-5 gap-2 shrink-0 transition-transform active:scale-95"
             >
               <Plus className="h-4 w-4" />
-              Tambah Task Baru
+              Bikin Task Baru
             </Button>
           )}
         </div>
@@ -65,10 +65,10 @@ export function FocusNowHero({
   }
 
   const priorityLabel = {
-    high: 'High Priority',
-    medium: 'Medium Priority',
-    low: 'Quick Win'
-  }[task.priority] || 'Priority';
+    high: 'Penting Banget',
+    medium: 'Prioritas Sedang',
+    low: 'Sat-Set (Quick Win)'
+  }[task.priority] || 'Prioritas';
 
   return (
     <section aria-label="Focus Now" className="relative overflow-hidden w-full rounded-2xl border border-slate-900/10 dark:border-slate-800 bg-slate-900 text-slate-50 p-6 sm:p-8 shadow-lg">
@@ -113,7 +113,7 @@ export function FocusNowHero({
             <div className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 text-slate-300 text-xs sm:text-sm leading-relaxed max-w-2xl">
               <Sparkles className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
               <div>
-                <span className="font-medium text-slate-200">Alasan AI: </span>
+                <span className="font-medium text-slate-200">Bisikan AI: </span>
                 <span>"{reason}"</span>
               </div>
             </div>
@@ -128,7 +128,7 @@ export function FocusNowHero({
             className="bg-white hover:bg-slate-100 text-slate-950 font-semibold shadow-md rounded-xl h-11 px-6 gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <Play className="h-4 w-4 fill-current text-slate-950" />
-            Mulai Fokus Sekarang
+            Gas Fokus Sekarang
           </Button>
 
           {onCompleteTask && (
@@ -139,7 +139,7 @@ export function FocusNowHero({
               className="bg-slate-800/80 hover:bg-slate-700/90 text-slate-200 hover:text-white border-slate-700 h-11 px-4 rounded-xl text-xs sm:text-sm gap-2"
             >
               <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-              Tandai Selesai
+              Tandai Kelar
             </Button>
           )}
         </div>

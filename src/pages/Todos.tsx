@@ -94,13 +94,13 @@ export default function Todos() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: 'Task berhasil ditambahkan! 🚀' });
+      toast({ title: 'Mantap jiwa! Task udah masuk list' });
       queryClient.invalidateQueries({ queryKey: ['todos'] });
       setEditingTodo(null);
       setQuickAddOpen(false);
     },
     onError: (error: any) => {
-      toast({ variant: 'destructive', title: 'Gagal membuat task', description: error.message });
+      toast({ variant: 'destructive', title: 'Waduh gagal nambah task', description: error.message });
     }
   });
 
@@ -113,13 +113,13 @@ export default function Todos() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: 'Task diperbarui.' });
+      toast({ title: 'Sip, detail task udah di-update!' });
       queryClient.invalidateQueries({ queryKey: ['todos'] });
       setEditingTodo(null);
       setQuickAddOpen(false);
     },
     onError: (error: any) => {
-      toast({ variant: 'destructive', title: 'Gagal memperbarui task', description: error.message });
+      toast({ variant: 'destructive', title: 'Duh gagal update nih', description: error.message });
     }
   });
 
@@ -132,11 +132,11 @@ export default function Todos() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: 'Task telah dihapus.' });
+      toast({ title: 'Task udah dihapus, aman sentosa!' });
       queryClient.invalidateQueries({ queryKey: ['todos'] });
     },
     onError: (error: any) => {
-      toast({ variant: 'destructive', title: 'Gagal menghapus task', description: error.message });
+      toast({ variant: 'destructive', title: 'Waduh gagal ngehapus', description: error.message });
     }
   });
 
@@ -190,19 +190,19 @@ export default function Todos() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(9, 0, 0, 0);
     updateMutation.mutate({ id, due_date: tomorrow.toISOString() });
-    toast({ title: 'Task dipindahkan ke besok (09:00 WIB)' });
+    toast({ title: 'Sip! Task dipindahin ke besok jam 09:00 WIB ya' });
   };
 
   const handleMoveToToday = (id: string) => {
     const today = new Date();
     today.setHours(18, 0, 0, 0);
     updateMutation.mutate({ id, due_date: today.toISOString() });
-    toast({ title: 'Task dijadikan target hari ini' });
+    toast({ title: 'Gass! Task resmi jadi target hari ini' });
   };
 
   const handleMoveToInbox = (id: string) => {
     updateMutation.mutate({ id, due_date: null, category: 'Inbox' });
-    toast({ title: 'Task dikembalikan ke Inbox' });
+    toast({ title: 'Task dibalikin ke Inbox dulu ya' });
   };
 
   const handleToggleWaiting = (id: string, currentWaiting: boolean) => {
@@ -215,7 +215,7 @@ export default function Todos() {
       newTags = [...newTags, 'waiting'];
     }
     updateMutation.mutate({ id, tags: newTags });
-    toast({ title: currentWaiting ? 'Status waiting dihapus' : 'Ditandai sebagai waiting' });
+    toast({ title: currentWaiting ? 'Status nungguin udah dihapus!' : 'Ditandai lagi nunggu respon orang lain' });
   };
 
   const handleUpdateSubtasks = (id: string, newDescription: string) => {

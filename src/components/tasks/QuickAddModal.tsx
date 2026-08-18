@@ -117,7 +117,7 @@ export function QuickAddModal({
   const handleAiParse = async (textToParse?: string) => {
     const raw = textToParse || inputText;
     if (!raw.trim()) {
-      toast({ description: 'Tuliskan deskripsi apa yang ingin kamu kerjakan dulu ya.' });
+      toast({ description: 'Ketik apa yang mau lo kerjain dulu ya bos.' });
       return;
     }
 
@@ -140,9 +140,9 @@ export function QuickAddModal({
       }
 
       setAiPreviewReady(true);
-      toast({ title: 'AI berhasil menyusun task!' });
+      toast({ title: 'Mantap, AI berhasil racik task lo!' });
     } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Gagal parse AI', description: err.message });
+      toast({ variant: 'destructive', title: 'Waduh AI lagi pusing', description: err.message });
     } finally {
       setIsAiLoading(false);
     }
@@ -151,7 +151,7 @@ export function QuickAddModal({
   const handleVoiceInput = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      toast({ variant: 'destructive', title: 'Browser Tidak Mendukung', description: 'Gunakan Google Chrome untuk fitur suara.' });
+      toast({ variant: 'destructive', title: 'Browser Belum Support', description: 'Pake Google Chrome ya biar fitur suara bisa jalan.' });
       return;
     }
 
@@ -162,7 +162,7 @@ export function QuickAddModal({
 
     recognition.onstart = () => {
       setIsRecording(true);
-      toast({ title: 'Mendengarkan...', description: 'Silakan sebutkan rencana tugas Anda.' });
+      toast({ title: 'Lagi dengerin nih...', description: 'Ngomong aja rencana task lo.' });
     };
 
     recognition.onresult = (e: any) => {
@@ -174,7 +174,7 @@ export function QuickAddModal({
 
     recognition.onerror = (e: any) => {
       setIsRecording(false);
-      toast({ variant: 'destructive', title: 'Error Mikrofon', description: e.error });
+      toast({ variant: 'destructive', title: 'Mic error euy', description: e.error });
     };
 
     recognition.onend = () => {
@@ -187,7 +187,7 @@ export function QuickAddModal({
   const handleSave = () => {
     const finalTitle = title.trim() || (activeTab === 'ai' ? inputText.trim() : '');
     if (!finalTitle) {
-      toast({ variant: 'destructive', description: 'Judul task tidak boleh kosong.' });
+      toast({ variant: 'destructive', description: 'Judul task jangan dikosongin dong!' });
       return;
     }
 
@@ -226,12 +226,12 @@ export function QuickAddModal({
         <DialogHeader className="space-y-1 text-left">
           <DialogTitle className="text-xl font-bold flex items-center gap-2">
             <PenTool className="h-5 w-5 text-primary" />
-            <span>{editingTodo ? 'Edit Task' : 'Tambah Task'}</span>
+            <span>{editingTodo ? 'Edit Detail Task' : 'Tambah Task Baru'}</span>
           </DialogTitle>
           <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
             {editingTodo
-              ? 'Perbarui detail task atau checklist di bawah ini.'
-              : 'Pilih input manual langsung atau gunakan bantuan AI untuk parse otomatis.'}
+              ? 'Atur ulang detail task atau checklist di bawah ini.'
+              : 'Pilih input manual sat-set atau minta bantuan AI buat parse otomatis.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -256,7 +256,7 @@ export function QuickAddModal({
           {!editingTodo && activeTab === 'ai' && (
             <div className="space-y-2">
               <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Deskripsikan Rencana
+                Ceritain Rencana Lo
               </Label>
               <div className="relative">
                 <Textarea
@@ -320,7 +320,7 @@ export function QuickAddModal({
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Masukkan judul task..."
+                  placeholder="Mau beresin apa nih? (contoh: Bikin Slide Bootcamp #3)"
                   className="font-medium text-sm rounded-lg"
                 />
               </div>
@@ -338,19 +338,19 @@ export function QuickAddModal({
                       <SelectItem value="high">
                         <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
                           <Flame className="h-3.5 w-3.5 fill-rose-500/20" />
-                          <span>High Priority</span>
+                          <span>Penting Banget (High)</span>
                         </div>
                       </SelectItem>
                       <SelectItem value="medium">
                         <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
                           <Star className="h-3.5 w-3.5 fill-amber-500/20" />
-                          <span>Medium</span>
+                          <span>Sedang (Medium)</span>
                         </div>
                       </SelectItem>
                       <SelectItem value="low">
                         <div className="flex items-center gap-1.5 text-sky-600 dark:text-sky-400">
                           <Zap className="h-3.5 w-3.5 fill-sky-500/20" />
-                          <span>Quick Win (Low)</span>
+                          <span>Sat-Set (Quick Win)</span>
                         </div>
                       </SelectItem>
                     </SelectContent>
@@ -376,7 +376,7 @@ export function QuickAddModal({
 
                 {/* Styled DateTimePicker */}
                 <div className="space-y-1">
-                  <Label className="text-[11px] text-muted-foreground">Tenggat Waktu</Label>
+                  <Label className="text-[11px] text-muted-foreground">Deadline / Tenggat</Label>
                   <DateTimePicker
                     value={dueDateIso}
                     onChange={setDueDateIso}
@@ -389,7 +389,7 @@ export function QuickAddModal({
               <div className="space-y-2 pt-1 border-t border-border/50">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Subtasks / Checklist ({subtasks.length})
+                    Checklist Langkah Kecil ({subtasks.length})
                   </Label>
                   <Button
                     type="button"
@@ -399,7 +399,7 @@ export function QuickAddModal({
                     className="h-6 text-[11px] text-primary hover:text-primary px-2"
                   >
                     <Plus className="h-3 w-3 mr-1" />
-                    Tambah Subtask
+                    Tambah Checklist
                   </Button>
                 </div>
 
@@ -432,11 +432,11 @@ export function QuickAddModal({
               {/* Additional Notes & Duration */}
               <div className="space-y-3 pt-2 border-t border-border/50">
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium">Catatan / Deskripsi Tambahan</Label>
+                  <Label className="text-xs font-medium">Catatan / Link Referensi Tambahan</Label>
                   <Textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Tulis catatan, link referensi, atau detail tambahan..."
+                    placeholder="Tempel link Figma, repo GitHub, atau catatan penting di sini..."
                     className="min-h-[65px] text-xs resize-none rounded-lg"
                   />
                 </div>
@@ -474,7 +474,7 @@ export function QuickAddModal({
             onClick={handleSave}
             className="rounded-xl text-xs h-10 font-semibold px-5 shadow-sm"
           >
-            {editingTodo ? 'Simpan Perubahan' : 'Simpan Task'}
+            {editingTodo ? 'Simpan Perubahan' : 'Gass Simpan Task'}
           </Button>
         </DialogFooter>
       </DialogContent>
