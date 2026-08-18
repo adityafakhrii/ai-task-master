@@ -85,7 +85,7 @@ export function TaskCard({
     >
       <div className="flex items-start gap-3">
         {/* Checkbox */}
-        <div className="pt-0.5">
+        <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
           <Checkbox
             checked={todo.completed}
             onCheckedChange={(checked) => onToggleComplete(todo.id, !!checked)}
@@ -97,9 +97,10 @@ export function TaskCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <h3
-              onClick={() => onEdit(todo)}
+              onClick={() => totalSubtasks > 0 && setExpanded(!expanded)}
               className={cn(
-                'text-sm sm:text-base font-medium text-foreground tracking-tight cursor-pointer hover:text-primary transition-colors leading-snug',
+                'text-sm sm:text-base font-medium text-foreground tracking-tight leading-snug select-text',
+                totalSubtasks > 0 && 'cursor-pointer hover:text-primary transition-colors',
                 todo.completed && 'line-through text-muted-foreground'
               )}
             >
@@ -112,7 +113,10 @@ export function TaskCard({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => onStartFocus(todo)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onStartFocus(todo);
+                  }}
                   className="h-7 px-2.5 text-xs font-medium bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground border-primary/20 transition-all gap-1 rounded-lg"
                 >
                   <Play className="h-3 w-3 fill-current" />
@@ -120,34 +124,66 @@ export function TaskCard({
                 </Button>
               )}
 
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(todo);
+                }}
+                className="h-7 w-7 text-muted-foreground hover:text-foreground hidden sm:inline-flex"
+                title="Edit Task"
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+              </Button>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => e.stopPropagation()}
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  >
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem onClick={() => onEdit(todo)} className="gap-2 text-xs">
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setTimeout(() => onEdit(todo), 50);
+                    }}
+                    className="gap-2 text-xs"
+                  >
                     <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
                     Edit Detail
                   </DropdownMenuItem>
 
                   {!todo.completed && onMoveToTomorrow && (
-                    <DropdownMenuItem onClick={() => onMoveToTomorrow(todo.id)} className="gap-2 text-xs">
+                    <DropdownMenuItem
+                      onSelect={() => onMoveToTomorrow(todo.id)}
+                      className="gap-2 text-xs"
+                    >
                       <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                       Pindah ke Besok
                     </DropdownMenuItem>
                   )}
 
                   {!todo.completed && onToggleWaiting && (
-                    <DropdownMenuItem onClick={() => onToggleWaiting(todo.id, waiting)} className="gap-2 text-xs">
+                    <DropdownMenuItem
+                      onSelect={() => onToggleWaiting(todo.id, waiting)}
+                      className="gap-2 text-xs"
+                    >
                       <Hourglass className="h-3.5 w-3.5 text-muted-foreground" />
                       {waiting ? 'Batal Menunggu' : 'Tandai Menunggu'}
                     </DropdownMenuItem>
                   )}
 
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onDelete(todo.id)} className="gap-2 text-xs text-destructive focus:text-destructive">
+                  <DropdownMenuItem
+                    onSelect={() => onDelete(todo.id)}
+                    className="gap-2 text-xs text-destructive focus:text-destructive"
+                  >
                     <Trash2 className="h-3.5 w-3.5" />
                     Hapus Task
                   </DropdownMenuItem>
