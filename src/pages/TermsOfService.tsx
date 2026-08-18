@@ -8,118 +8,68 @@ export default function TermsOfService() {
     const navigate = useNavigate();
 
     return (
-        <div className="min-h-screen flex flex-col bg-background">
-            <div className="flex-1 container mx-auto px-4 py-8 max-w-4xl">
+        <div className="min-h-screen flex flex-col bg-background text-foreground">
+            <div className="flex-1 container mx-auto px-4 py-8 max-w-3xl space-y-6">
                 <Button
                     variant="ghost"
+                    size="sm"
                     onClick={() => navigate(-1)}
-                    className="mb-6"
+                    className="gap-2 rounded-xl text-xs text-muted-foreground hover:text-foreground mb-2"
                 >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Kembali
+                    <ArrowLeft className="h-4 w-4" />
+                    <span>Kembali</span>
                 </Button>
 
-                <div className="space-y-8">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="p-3 bg-primary/10 rounded-full">
-                            <FileText className="h-8 w-8 text-primary" />
-                        </div>
-                        <div>
-                            <h1 className="text-3xl font-bold m-0">Syarat dan Ketentuan</h1>
-                            <p className="text-muted-foreground mt-1">
-                                Terakhir diperbarui: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-                            </p>
-                        </div>
+                <div className="flex items-center gap-3 pb-2">
+                    <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20 text-primary">
+                        <FileText className="h-7 w-7" />
                     </div>
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                            Syarat & Ketentuan
+                        </h1>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                            Terakhir diperbarui: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </p>
+                    </div>
+                </div>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>1. Penerimaan Syarat</CardTitle>
+                <div className="space-y-4">
+                    <Card className="rounded-2xl border border-border/80 shadow-sm bg-card">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base font-semibold">1. Penerimaan Ketentuan</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-muted-foreground">
-                                Dengan mengakses atau menggunakan aplikasi CatetYuk, Anda menyetujui untuk terikat oleh Syarat dan Ketentuan ini.
-                                Jika Anda tidak setuju dengan bagian mana pun dari syarat ini, Anda tidak diperkenankan menggunakan layanan kami.
+                            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                                Dengan mengakses atau menggunakan aplikasi CatetYuk, Anda menyatakan telah membaca, memahami, dan menyetujui untuk terikat oleh Syarat dan Ketentuan ini.
                             </p>
                         </CardContent>
                     </Card>
 
-                    <div className="grid md:grid-cols-2 gap-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>2. Akun Pengguna</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-muted-foreground">
-                                    Untuk menggunakan fitur tertentu, Anda perlu membuat akun. Anda bertanggung jawab untuk menjaga kerahasiaan kredensial akun Anda
-                                    dan untuk semua aktivitas yang terjadi di bawah akun Anda.
-                                </p>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>3. Penggunaan yang Diperbolehkan</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="mb-2 text-muted-foreground">
-                                    Anda setuju untuk tidak menggunakan aplikasi untuk tujuan ilegal atau melanggar hukum, seperti:
-                                </p>
-                                <ul className="list-disc list-inside text-muted-foreground ml-2">
-                                    <li>Menyebarkan malware atau virus.</li>
-                                    <li>Mencoba mengakses sistem kami secara tidak sah.</li>
-                                    <li>Mengganggu integritas atau kinerja layanan.</li>
-                                </ul>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>4. Kekayaan Intelektual</CardTitle>
+                    <Card className="rounded-2xl border border-border/80 shadow-sm bg-card">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base font-semibold">2. Penggunaan Layanan</CardTitle>
                         </CardHeader>
-                        <CardContent>
-                            <p className="text-muted-foreground">
-                                Layanan dan konten aslinya (tidak termasuk konten yang Anda berikan) adalah dan akan tetap menjadi milik eksklusif CatetYuk dan pemberi lisensinya.
+                        <CardContent className="space-y-2">
+                            <p className="text-xs sm:text-sm text-muted-foreground">
+                                Anda setuju untuk menggunakan CatetYuk hanya untuk tujuan produktivitas yang sah dan mematuhi aturan berikut:
                             </p>
+                            <ul className="list-disc list-inside space-y-1.5 text-xs sm:text-sm text-muted-foreground ml-1">
+                                <li>Menjaga kerahasiaan kredensial dan kata sandi akun Anda.</li>
+                                <li>Tidak menggunakan aplikasi untuk aktivitas yang melanggar hukum atau merusak sistem.</li>
+                                <li>Bertanggung jawab penuh atas konten dan tugas yang Anda kelola.</li>
+                            </ul>
                         </CardContent>
                     </Card>
 
-                    <div className="grid md:grid-cols-2 gap-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>5. Penghentian</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-muted-foreground">
-                                    Kami berhak untuk menghentikan atau menangguhkan akses Anda ke layanan segera, tanpa pemberitahuan atau kewajiban sebelumnya,
-                                    untuk alasan apa pun, termasuk namun tidak terbatas pada pelanggaran Syarat.
-                                </p>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>6. Batasan Tanggung Jawab</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-muted-foreground">
-                                    CatetYuk atau pengembangnya tidak akan bertanggung jawab atas kerusakan tidak langsung, insidental, khusus, atau konsekuensial
-                                    yang timbul dari penggunaan atau ketidakmampuan menggunakan layanan.
-                                </p>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>7. Hubungi Kami</CardTitle>
+                    <Card className="rounded-2xl border border-border/80 shadow-sm bg-card">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base font-semibold">3. Fitur AI & Layanan Pihak Ketiga</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-muted-foreground mb-2">
-                                Jika Anda memiliki pertanyaan tentang Syarat ini, silakan hubungi kami di:
+                            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                                CatetYuk menyediakan fitur bantuan kecerdasan buatan (AI) untuk membantu menstrukturkan dan memprioritaskan tugas. Keputusan eksekusi kerja sepenuhnya berada di tangan Anda sebagai pengguna.
                             </p>
-                            <p className="font-medium text-primary">adityafakhri03@gmail.com</p>
                         </CardContent>
                     </Card>
                 </div>

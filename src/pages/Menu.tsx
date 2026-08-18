@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { MobileLayout } from '@/components/MobileLayout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/components/theme-provider';
@@ -13,8 +12,11 @@ import {
     Mail,
     LogOut,
     ChevronRight,
-    Heart
+    ArrowLeft,
+    Palette,
+    Sparkles
 } from 'lucide-react';
+import Footer from '@/components/Footer';
 
 export default function Menu() {
     const { user, signOut } = useAuth();
@@ -29,65 +31,78 @@ export default function Menu() {
     const menuItems = [
         {
             icon: Shield,
-            label: 'Privacy Policy',
+            label: 'Kebijakan Privasi',
             path: '/privacy'
         },
         {
             icon: FileText,
-            label: 'Terms of Service',
+            label: 'Syarat & Ketentuan',
             path: '/terms'
         },
         {
             icon: History,
-            label: 'Updates & Changelog',
+            label: 'Catatan Rilis & Changelog',
             path: '/changelog'
         },
         {
             icon: Mail,
-            label: 'Contact Support',
+            label: 'Bantuan & Kontak',
             path: '/contact'
         }
     ];
 
     return (
-        <MobileLayout>
-            <div className="p-4 space-y-6">
-                <h1 className="text-2xl font-bold px-2">Menu</h1>
+        <div className="min-h-screen flex flex-col bg-background text-foreground">
+            <div className="flex-1 max-w-xl mx-auto w-full p-4 sm:p-6 space-y-6">
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => navigate('/todos')}
+                        className="h-8 w-8 rounded-lg text-muted-foreground"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h1 className="text-xl font-bold tracking-tight">Menu Aplikasi</h1>
+                </div>
 
-                {/* Profile Card */}
+                {/* Profile Shortcut Card */}
                 <div
                     onClick={() => navigate('/profile')}
-                    className="bg-card/50 backdrop-blur-sm border border-border/50 p-4 rounded-xl flex items-center gap-4 active:scale-[0.98] transition-all cursor-pointer"
+                    className="bg-card hover:bg-card/90 border border-border/80 p-4 rounded-2xl flex items-center gap-3.5 shadow-sm active:scale-[0.99] transition-all cursor-pointer"
                 >
-                    <Avatar className="h-16 w-16 border-2 border-primary/20">
+                    <Avatar className="h-14 w-14 border border-primary/20 shadow-xs">
                         <AvatarImage src={user?.user_metadata?.avatar_url || user?.user_metadata?.picture} />
-                        <AvatarFallback className="text-xl bg-primary/10 text-primary">
+                        <AvatarFallback className="text-lg bg-primary/10 text-primary font-semibold">
                             {user?.email?.charAt(0).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                        <h2 className="font-semibold text-lg truncate">
-                            {user?.user_metadata?.full_name || 'Pengguna'}
+                        <h2 className="font-semibold text-sm sm:text-base truncate">
+                            {user?.user_metadata?.full_name || 'Mentor'}
                         </h2>
-                        <p className="text-sm text-muted-foreground truncate">
+                        <p className="text-xs text-muted-foreground truncate">
                             {user?.email}
                         </p>
-                        <p className="text-xs text-primary mt-1 font-medium">
-                            Lihat Profil
+                        <p className="text-[11px] text-primary mt-0.5 font-medium">
+                            Kelola Profil & Keamanan →
                         </p>
                     </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
- 
+
                 {/* Theme Selector */}
                 <div className="space-y-2">
-                    <h3 className="px-2 text-sm font-medium text-muted-foreground">
-                        Tema Tampilan
+                    <h3 className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Tema Visual
                     </h3>
-                    <div className="bg-card/50 backdrop-blur-sm border border-border/50 p-4 rounded-xl flex items-center justify-between gap-4">
-                        <span className="font-medium text-sm">Pilih Tema Visual</span>
+                    <div className="bg-card border border-border/80 p-3.5 rounded-2xl flex items-center justify-between gap-4 shadow-sm">
+                        <div className="flex items-center gap-2 text-xs font-medium">
+                            <Palette className="h-4 w-4 text-primary" />
+                            <span>Pilih Skema Warna</span>
+                        </div>
                         <Select value={theme} onValueChange={(val) => setTheme(val)}>
-                            <SelectTrigger id="theme-select" className="w-[160px] bg-background">
+                            <SelectTrigger id="theme-select" className="w-[160px] h-9 text-xs rounded-xl bg-background">
                                 <SelectValue placeholder="Pilih tema..." />
                             </SelectTrigger>
                             <SelectContent>
@@ -95,58 +110,47 @@ export default function Menu() {
                                 <SelectItem value="dark">Gelap (Dark)</SelectItem>
                                 <SelectItem value="neon-dark">Neon Cyberpunk</SelectItem>
                                 <SelectItem value="deep-ocean">Deep Ocean</SelectItem>
-                                <SelectItem value="system">Sistem</SelectItem>
+                                <SelectItem value="system">Mengikuti Sistem</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                 </div>
- 
-                {/* Menu Items */}
+
+                {/* Navigation Links Group */}
                 <div className="space-y-2">
-                    <h3 className="px-2 text-sm font-medium text-muted-foreground">
-                        Tentang Aplikasi
+                    <h3 className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Informasi & Bantuan
                     </h3>
-                    <div className="bg-card/30 rounded-xl border border-border/40 overflow-hidden divide-y divide-border/40">
+                    <div className="bg-card rounded-2xl border border-border/80 shadow-sm overflow-hidden divide-y divide-border/60">
                         {menuItems.map((item) => (
                             <button
                                 key={item.path}
                                 onClick={() => navigate(item.path)}
-                                className="w-full p-4 flex items-center gap-3 hover:bg-muted/50 transition-colors text-left"
+                                className="w-full p-3.5 flex items-center gap-3 hover:bg-muted/40 transition-colors text-left"
                             >
-                                <div className="h-8 w-8 rounded-lg bg-background flex items-center justify-center text-foreground/80">
-                                    <item.icon className="h-5 w-5" />
+                                <div className="h-8 w-8 rounded-xl bg-muted/60 flex items-center justify-center text-primary">
+                                    <item.icon className="h-4 w-4" />
                                 </div>
-                                <span className="flex-1 font-medium">{item.label}</span>
-                                <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+                                <span className="flex-1 text-xs sm:text-sm font-medium">{item.label}</span>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground/60" />
                             </button>
                         ))}
                     </div>
                 </div>
 
                 {/* Logout Button */}
-                <div className="pt-4">
+                <div className="pt-2">
                     <Button
-                        variant="destructive"
-                        className="w-full h-12 text-base rounded-xl gap-2"
+                        variant="outline"
+                        className="w-full h-11 text-xs sm:text-sm font-semibold rounded-2xl gap-2 border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive/50 transition-colors"
                         onClick={handleSignOut}
                     >
-                        <LogOut className="h-5 w-5" />
-                        Keluar Aplikasi
+                        <LogOut className="h-4 w-4" />
+                        Keluar dari Akun
                     </Button>
                 </div>
-
-                {/* Footer Info */}
-                <div className="flex flex-col items-center gap-2 py-8 text-center">
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground/80">
-                        <span>Dibuat dengan</span>
-                        <Heart className="h-4 w-4 text-red-500 fill-red-500 animate-pulse" />
-                        <span>oleh Aditya</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground/60">
-                        v1.6.0 • © {new Date().getFullYear()} CatetYuk
-                    </p>
-                </div>
             </div>
-        </MobileLayout>
+            <Footer />
+        </div>
     );
 }
