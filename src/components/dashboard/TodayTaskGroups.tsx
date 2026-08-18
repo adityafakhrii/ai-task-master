@@ -86,7 +86,7 @@ export function TodayTaskGroups({
             className="h-8 text-xs font-medium gap-1.5 rounded-lg shadow-sm"
           >
             <Plus className="h-3.5 w-3.5" />
-            <span>+ Tambah Task</span>
+            <span>Tambah Task</span>
           </Button>
         </div>
       </div>

@@ -26,7 +26,7 @@ export type NavTab = 'today' | 'inbox' | 'focus' | 'all' | 'review';
 
 interface AppLayoutProps {
   children: ReactNode;
-  activeTab: NavTab;
+  activeTab: NavTab | 'profile' | 'menu';
   onTabChange: (tab: NavTab) => void;
   onQuickAdd: () => void;
   todayCompletedCount: number;
@@ -162,8 +162,15 @@ export function AppLayout({
         {/* User Profile & Theme at Bottom of Sidebar */}
         <div className="pt-4 border-t border-sidebar-border space-y-3">
           <div
-            onClick={() => navigate('/profile')}
-            className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-sidebar-accent/60 cursor-pointer transition-colors"
+            onClick={() => {
+              if (activeTab !== 'profile') navigate('/profile');
+            }}
+            className={cn(
+              "flex items-center gap-2.5 p-2 rounded-xl cursor-pointer transition-all",
+              activeTab === 'profile'
+                ? "bg-sidebar-accent text-sidebar-foreground font-semibold ring-1 ring-primary/30 shadow-xs"
+                : "hover:bg-sidebar-accent/60 text-muted-foreground hover:text-sidebar-foreground"
+            )}
           >
             <Avatar className="h-8 w-8 border border-border">
               <AvatarImage src={user?.user_metadata?.avatar_url || user?.user_metadata?.picture} />

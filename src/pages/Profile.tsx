@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, User, Lock, Camera, AlertTriangle, Trash2, Eye, EyeOff, Palette, ShieldAlert } from 'lucide-react';
+import { User, Lock, Camera, AlertTriangle, Trash2, Eye, EyeOff, Palette, ShieldAlert } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTheme } from '@/components/theme-provider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,7 +22,10 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import Footer from '@/components/Footer';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { QuickAddModal } from '@/components/tasks/QuickAddModal';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Todo, isTaskDueToday } from '@/lib/taskUtils';
 
 const compressAndConvertToWebP = (file: File, maxDimension = 400, quality = 0.8): Promise<Blob> => {
     return new Promise((resolve, reject) => {
@@ -82,6 +85,7 @@ export default function Profile() {
     const navigate = useNavigate();
     const { toast } = useToast();
     const { theme, setTheme } = useTheme();
+    const queryClient = useQueryClient();
     const [loading, setLoading] = useState(false);
     const [fullName, setFullName] = useState('');
     const [password, setPassword] = useState('');
@@ -95,7 +99,46 @@ export default function Profile() {
     const [deleteConfirmText, setDeleteConfirmText] = useState('');
     const [showFirstDeleteDialog, setShowFirstDeleteDialog] = useState(false);
     const [showSecondDeleteDialog, setShowSecondDeleteDialog] = useState(false);
+    const [quickAddOpen, setQuickAddOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Fetch todos for layout badges
+    const { data: todos = [] } = useQuery<Todo[]>({
+        queryKey: ['todos'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('todos')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            return (data || []) as Todo[];
+        },
+        enabled: !!user
+    });
+
+    const todayTasks = todos.filter(t => isTaskDueToday(t.due_date) && !t.completed);
+    const todayCompleted = todos.filter(t => isTaskDueToday(t.due_date) && t.completed);
+    const inboxTasks = todos.filter(t => (!t.due_date || t.category === 'Inbox') && !t.completed);
+
+    const insertMutation = useMutation({
+        mutationFn: async (newTodo: Omit<Todo, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'completed'>) => {
+            const { error } = await supabase
+                .from('todos')
+                .insert({
+                    ...newTodo,
+                    user_id: user!.id
+                });
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            toast({ title: 'Mantap jiwa! Task udah masuk list' });
+            queryClient.invalidateQueries({ queryKey: ['todos'] });
+            setQuickAddOpen(false);
+        },
+        onError: (error: any) => {
+            toast({ variant: 'destructive', title: 'Waduh gagal nambah task', description: error.message });
+        }
+    });
 
     useEffect(() => {
         if (authLoading) return;
@@ -306,18 +349,15 @@ export default function Profile() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col bg-background text-foreground">
-            <div className="flex-1 container mx-auto px-4 py-8 max-w-2xl space-y-6">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigate('/todos')}
-                    className="gap-2 rounded-xl text-xs text-muted-foreground hover:text-foreground mb-2"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    <span>Kembali ke Dashboard</span>
-                </Button>
-
+        <AppLayout
+            activeTab="profile"
+            onTabChange={(tab) => navigate(`/todos?tab=${tab}`)}
+            onQuickAdd={() => setQuickAddOpen(true)}
+            todayCompletedCount={todayCompleted.length}
+            todayTotalCount={todayTasks.length + todayCompleted.length}
+            inboxCount={inboxTasks.length}
+        >
+            <div className="space-y-6 max-w-3xl mx-auto pb-16">
                 <div className="space-y-1">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                         Pengaturan Akun
@@ -588,7 +628,12 @@ export default function Profile() {
                     </Card>
                 </div>
             </div>
-            <Footer />
-        </div>
+
+            <QuickAddModal
+                open={quickAddOpen}
+                onOpenChange={setQuickAddOpen}
+                onSubmit={(taskData) => insertMutation.mutate(taskData)}
+            />
+        </AppLayout>
     );
 }
