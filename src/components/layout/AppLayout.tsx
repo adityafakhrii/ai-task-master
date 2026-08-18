@@ -241,38 +241,41 @@ export function AppLayout({
         </main>
       </div>
 
+      {/* MOBILE FLOATING ACTION BUTTON (FAB) */}
+      <button
+        type="button"
+        onClick={onQuickAdd}
+        className="fixed bottom-20 right-4 z-50 md:hidden h-13 w-13 p-3.5 rounded-full bg-primary text-primary-foreground shadow-2xl hover:bg-primary/95 border-2 border-background flex items-center justify-center transition-all duration-200 active:scale-90 hover:scale-105"
+        title="Tambah Task Baru"
+        aria-label="Tambah Task Baru"
+      >
+        <Plus className="h-6 w-6 stroke-[2.5]" />
+      </button>
+
       {/* MOBILE BOTTOM NAVIGATION */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-background/90 backdrop-blur-xl border-t border-border/80 pb-safe md:hidden">
-        <div className="flex items-center justify-around h-16 px-1">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl border-t border-border/80 pb-safe md:hidden shadow-lg">
+        <div className="grid grid-cols-5 h-16 px-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = activeTab === item.id;
             return (
               <button
                 key={item.id}
+                type="button"
                 onClick={() => onTabChange(item.id)}
                 className={cn(
-                  'flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors relative',
-                  active ? 'text-primary font-semibold' : 'text-muted-foreground'
+                  'flex flex-col items-center justify-center h-full gap-1 transition-colors relative py-1',
+                  active ? 'text-primary font-semibold' : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                <Icon className="h-5 w-5" />
-                <span className="text-[10px]">{item.label}</span>
+                <Icon className={cn('h-5 w-5', active && 'stroke-[2.5]')} />
+                <span className="text-[10px] tracking-tight">{item.label}</span>
                 {item.badge && (
-                  <span className="absolute top-2 right-4 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />
+                  <span className="absolute top-2 right-3 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />
                 )}
               </button>
             );
           })}
-
-          {/* Floating Mobile Quick Add */}
-          <button
-            onClick={onQuickAdd}
-            className="flex items-center justify-center -mt-6 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-transform active:scale-90"
-            title="Tambah Task"
-          >
-            <Plus className="h-6 w-6" />
-          </button>
         </div>
       </nav>
     </div>
