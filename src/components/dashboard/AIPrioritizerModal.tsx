@@ -151,8 +151,12 @@ export function AIPrioritizerModal({
               </div>
 
               {prioritizedResult.quick_wins_suggestion && (
-                <div className="p-3 rounded-xl bg-muted/50 border border-border text-xs text-muted-foreground">
-                  💡 <strong>Saran Tambahan:</strong> {prioritizedResult.quick_wins_suggestion}
+                <div className="p-3 rounded-xl bg-muted/50 border border-border text-xs text-muted-foreground flex items-start gap-1.5">
+                  <Lightbulb className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <strong>Saran Tambahan: </strong>
+                    <span>{prioritizedResult.quick_wins_suggestion}</span>
+                  </div>
                 </div>
               )}
             </div>

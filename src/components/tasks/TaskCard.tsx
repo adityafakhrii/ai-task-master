@@ -18,7 +18,10 @@ import {
   ChevronDown,
   ChevronUp,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  Flame,
+  Star,
+  Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -201,9 +204,24 @@ export function TaskCard({
                 priorityStyles[todo.priority] || priorityStyles.medium
               )}
             >
-              {todo.priority === 'high' && '🔥 High'}
-              {todo.priority === 'medium' && '⭐ Med'}
-              {todo.priority === 'low' && '⚡ Low'}
+              {todo.priority === 'high' && (
+                <>
+                  <Flame className="h-3 w-3 fill-rose-500/20" />
+                  <span>High</span>
+                </>
+              )}
+              {todo.priority === 'medium' && (
+                <>
+                  <Star className="h-3 w-3 fill-amber-500/20" />
+                  <span>Medium</span>
+                </>
+              )}
+              {todo.priority === 'low' && (
+                <>
+                  <Zap className="h-3 w-3 fill-sky-500/20" />
+                  <span>Low</span>
+                </>
+              )}
             </span>
 
             {/* Category tag if present */}

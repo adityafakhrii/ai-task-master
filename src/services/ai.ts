@@ -92,7 +92,9 @@ export function localParseTask(text: string): ParsedTaskResult {
 
   // 3. Category detection
   let category = 'Bootcamp';
-  if (lower.includes('rundown') || lower.includes('closing') || lower.includes('event') || lower.includes('showcase')) {
+  if (lower.includes('content') || lower.includes('konten') || lower.includes('video') || lower.includes('script') || lower.includes('promosi') || lower.includes('recap') || lower.includes('post') || lower.includes('youtube') || lower.includes('tiktok')) {
+    category = 'Content';
+  } else if (lower.includes('rundown') || lower.includes('closing') || lower.includes('event') || lower.includes('showcase')) {
     category = 'Event / Closing';
   } else if (lower.includes('nilai') || lower.includes('grading') || lower.includes('review final') || lower.includes('project')) {
     category = 'Review & Grading';
@@ -108,7 +110,9 @@ export function localParseTask(text: string): ParsedTaskResult {
 
   // 4. Suggested subtasks derivation
   const subtasks: string[] = [];
-  if (lower.includes('closing') || lower.includes('showcase')) {
+  if (category === 'Content') {
+    subtasks.push('Buat outline / hook naskah video', 'Review script dan visual asset', 'Siapkan rekaman / jadwal publikasi');
+  } else if (lower.includes('closing') || lower.includes('showcase')) {
     subtasks.push('Finalisasi rundown acara closing', 'Cek kesiapan peserta showcase', 'Pastikan link streaming / room siap');
   } else if (lower.includes('nilai') || lower.includes('final project')) {
     subtasks.push('Cek repository GitHub peserta', 'Uji coba deployment project', 'Input nilai dan feedback konstruktif');

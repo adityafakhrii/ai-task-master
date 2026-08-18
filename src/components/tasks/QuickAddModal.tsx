@@ -12,11 +12,27 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sparkles, Mic, Loader2, CheckCircle2, ChevronDown, ChevronUp, Plus, Trash2, Calendar, Clock } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Sparkles,
+  Mic,
+  Loader2,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Trash2,
+  Clock,
+  Flame,
+  Star,
+  Zap,
+  PenTool,
+  Bot
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { parseTask, ParsedTaskResult } from '@/services/ai';
 import { Todo, serializeSubtasks, SubtaskItem } from '@/lib/taskUtils';
-import { format, parseISO } from 'date-fns';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 
 interface QuickAddModalProps {
   open: boolean;
@@ -33,6 +49,17 @@ interface QuickAddModalProps {
   editingTodo?: Todo | null;
 }
 
+const CATEGORIES = [
+  'Content',
+  'Bootcamp',
+  'Review & Grading',
+  'Event / Closing',
+  'Materi',
+  'Community & Chat',
+  'Admin',
+  'Personal'
+];
+
 export function QuickAddModal({
   open,
   onOpenChange,
@@ -40,6 +67,7 @@ export function QuickAddModal({
   editingTodo
 }: QuickAddModalProps) {
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<'manual' | 'ai'>('manual');
   const [inputText, setInputText] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -50,7 +78,7 @@ export function QuickAddModal({
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [category, setCategory] = useState<string>('Bootcamp');
-  const [dueDateStr, setDueDateStr] = useState<string>('');
+  const [dueDateIso, setDueDateIso] = useState<string | null>(null);
   const [duration, setDuration] = useState<number | ''>(25);
   const [subtasks, setSubtasks] = useState<SubtaskItem[]>([]);
   const [tags, setTags] = useState<string[]>([]);
@@ -62,12 +90,13 @@ export function QuickAddModal({
       setDescription(editingTodo.description || '');
       setPriority(editingTodo.priority);
       setCategory(editingTodo.category || 'Bootcamp');
-      setDueDateStr(editingTodo.due_date ? format(parseISO(editingTodo.due_date), "yyyy-MM-dd'T'HH:mm") : '');
+      setDueDateIso(editingTodo.due_date || null);
       setDuration(editingTodo.estimated_duration_minutes || 25);
       setTags(editingTodo.tags || []);
       setAiPreviewReady(true);
       setShowAdvanced(true);
       setInputText('');
+      setActiveTab('manual');
     } else if (open) {
       // Reset form
       setInputText('');
@@ -75,12 +104,13 @@ export function QuickAddModal({
       setDescription('');
       setPriority('medium');
       setCategory('Bootcamp');
-      setDueDateStr('');
+      setDueDateIso(null);
       setDuration(25);
       setSubtasks([]);
       setTags([]);
       setAiPreviewReady(false);
       setShowAdvanced(false);
+      setActiveTab('manual');
     }
   }, [editingTodo, open]);
 
@@ -101,17 +131,7 @@ export function QuickAddModal({
       setCategory(parsed.category || 'Bootcamp');
       setDuration(parsed.estimated_duration_minutes || (parsed.priority === 'high' ? 45 : 25));
       setTags(parsed.tags || []);
-
-      if (parsed.due_date) {
-        try {
-          const d = parseISO(parsed.due_date);
-          setDueDateStr(format(d, "yyyy-MM-dd'T'HH:mm"));
-        } catch {
-          setDueDateStr('');
-        }
-      } else {
-        setDueDateStr('');
-      }
+      setDueDateIso(parsed.due_date || null);
 
       if (parsed.subtasks && parsed.subtasks.length > 0) {
         setSubtasks(parsed.subtasks.map((st, idx) => ({ id: `st-${idx}`, title: st, completed: false })));
@@ -142,7 +162,7 @@ export function QuickAddModal({
 
     recognition.onstart = () => {
       setIsRecording(true);
-      toast({ title: 'Mendengarkan...', description: 'Silakan sebutkan apa yang ingin kamu kerjakan.' });
+      toast({ title: 'Mendengarkan...', description: 'Silakan sebutkan rencana tugas Anda.' });
     };
 
     recognition.onresult = (e: any) => {
@@ -165,21 +185,20 @@ export function QuickAddModal({
   };
 
   const handleSave = () => {
-    if (!title.trim() && !inputText.trim()) {
+    const finalTitle = title.trim() || (activeTab === 'ai' ? inputText.trim() : '');
+    if (!finalTitle) {
       toast({ variant: 'destructive', description: 'Judul task tidak boleh kosong.' });
       return;
     }
 
-    const finalTitle = title.trim() || inputText.trim();
     const finalDescription = serializeSubtasks(description, subtasks);
-    const finalDueDate = dueDateStr ? new Date(dueDateStr).toISOString() : null;
 
     onSubmit({
       title: finalTitle,
       description: finalDescription || null,
       priority,
       category: category || null,
-      due_date: finalDueDate,
+      due_date: dueDateIso,
       estimated_duration_minutes: typeof duration === 'number' ? duration : null,
       tags: tags.length > 0 ? tags : null
     });
@@ -206,19 +225,35 @@ export function QuickAddModal({
       <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto p-5 sm:p-6 rounded-2xl">
         <DialogHeader className="space-y-1 text-left">
           <DialogTitle className="text-xl font-bold flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-amber-500" />
-            <span>{editingTodo ? 'Edit Task' : 'Quick Add Task'}</span>
+            <PenTool className="h-5 w-5 text-primary" />
+            <span>{editingTodo ? 'Edit Task' : 'Tambah Task'}</span>
           </DialogTitle>
           <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
             {editingTodo
-              ? 'Perbarui detail task atau gunakan AI untuk menyempurnakan checklist.'
-              : 'Deskripsikan secara santai, AI akan langsung menstrukturkan prioritas, deadline, dan subtask.'}
+              ? 'Perbarui detail task atau checklist di bawah ini.'
+              : 'Pilih input manual langsung atau gunakan bantuan AI untuk parse otomatis.'}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 pt-2">
-          {/* PRIMARY NATURAL LANGUAGE INPUT (If not editing or before AI parse) */}
-          {!editingTodo && (
+        {/* MODE SWITCHER TABS (If not editing) */}
+        {!editingTodo && (
+          <Tabs value={activeTab} onValueChange={(val: any) => setActiveTab(val)} className="w-full pt-1">
+            <TabsList className="grid grid-cols-2 w-full h-10 p-1 bg-muted/60 rounded-xl">
+              <TabsTrigger value="manual" className="rounded-lg text-xs font-semibold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs">
+                <PenTool className="h-3.5 w-3.5 text-primary" />
+                <span>Input Manual</span>
+              </TabsTrigger>
+              <TabsTrigger value="ai" className="rounded-lg text-xs font-semibold gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-xs">
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                <span>Parse AI Otomatis</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
+
+        <div className="space-y-4 pt-1">
+          {/* TAB 1: AI PARSING INPUT */}
+          {!editingTodo && activeTab === 'ai' && (
             <div className="space-y-2">
               <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Deskripsikan Rencana
@@ -227,8 +262,8 @@ export function QuickAddModal({
                 <Textarea
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
-                  placeholder="Contoh: Besok closing bootcamp, gue harus siapin rundown dan cek peserta showcase..."
-                  className="min-h-[90px] pr-20 resize-none text-sm rounded-xl border-slate-300 dark:border-slate-700 bg-background/50 focus:bg-background"
+                  placeholder="Contoh: Besok jam 4 sore buat script video promosi cloud dan review materi bootcamp..."
+                  className="min-h-[90px] pr-20 resize-none text-sm rounded-xl border-border bg-background/50 focus:bg-background"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                       e.preventDefault();
@@ -267,38 +302,32 @@ export function QuickAddModal({
             </div>
           )}
 
-          {/* AI INTERPRETATION PREVIEW / EDITABLE CARD */}
-          {(aiPreviewReady || editingTodo) && (
+          {/* MAIN FORM: Visible in Manual Tab or in AI Tab after preview ready / Editing */}
+          {(activeTab === 'manual' || aiPreviewReady || editingTodo) && (
             <div className="rounded-xl border border-border/80 bg-card p-4 space-y-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-primary inline-flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                  Preview Task Terstruktur
-                </span>
-
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced(!showAdvanced)}
-                  className="text-xs text-muted-foreground hover:text-foreground font-medium flex items-center gap-1"
-                >
-                  <span>{showAdvanced ? 'Tutup Detail' : 'Edit Detail Lengkap'}</span>
-                  {showAdvanced ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                </button>
-              </div>
+              {activeTab === 'ai' && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-primary inline-flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    Hasil Interpretasi AI
+                  </span>
+                </div>
+              )}
 
               {/* Title */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Judul Task</Label>
+                <Label className="text-xs font-medium">Judul Task *</Label>
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Judul task..."
+                  placeholder="Masukkan judul task..."
                   className="font-medium text-sm rounded-lg"
                 />
               </div>
 
-              {/* Quick Pills Overview */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {/* Priority, Category, Due Date Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Priority */}
                 <div className="space-y-1">
                   <Label className="text-[11px] text-muted-foreground">Prioritas</Label>
                   <Select value={priority} onValueChange={(val: any) => setPriority(val)}>
@@ -306,61 +335,75 @@ export function QuickAddModal({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="high">🔥 High Priority</SelectItem>
-                      <SelectItem value="medium">⭐ Medium</SelectItem>
-                      <SelectItem value="low">⚡ Quick Win (Low)</SelectItem>
+                      <SelectItem value="high">
+                        <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                          <Flame className="h-3.5 w-3.5 fill-rose-500/20" />
+                          <span>High Priority</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="medium">
+                        <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                          <Star className="h-3.5 w-3.5 fill-amber-500/20" />
+                          <span>Medium</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="low">
+                        <div className="flex items-center gap-1.5 text-sky-600 dark:text-sky-400">
+                          <Zap className="h-3.5 w-3.5 fill-sky-500/20" />
+                          <span>Quick Win (Low)</span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
+                {/* Category with "Pilih Kategori" placeholder and Content category */}
                 <div className="space-y-1">
                   <Label className="text-[11px] text-muted-foreground">Kategori</Label>
                   <Select value={category} onValueChange={setCategory}>
                     <SelectTrigger className="h-9 text-xs rounded-lg">
-                      <SelectValue />
+                      <SelectValue placeholder="Pilih Kategori" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Bootcamp">Bootcamp</SelectItem>
-                      <SelectItem value="Review & Grading">Review & Grading</SelectItem>
-                      <SelectItem value="Event / Closing">Event / Closing</SelectItem>
-                      <SelectItem value="Materi">Materi</SelectItem>
-                      <SelectItem value="Community & Chat">Community & Chat</SelectItem>
-                      <SelectItem value="Admin">Admin</SelectItem>
-                      <SelectItem value="Personal">Personal</SelectItem>
+                      {CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="col-span-2 sm:col-span-1 space-y-1">
+                {/* Styled DateTimePicker */}
+                <div className="space-y-1">
                   <Label className="text-[11px] text-muted-foreground">Tenggat Waktu</Label>
-                  <Input
-                    type="datetime-local"
-                    value={dueDateStr}
-                    onChange={(e) => setDueDateStr(e.target.value)}
-                    className="h-9 text-xs rounded-lg"
+                  <DateTimePicker
+                    value={dueDateIso}
+                    onChange={setDueDateIso}
+                    placeholder="Pilih deadline..."
                   />
                 </div>
               </div>
 
-              {/* Suggested Subtasks Checklist */}
-              {subtasks.length > 0 && (
-                <div className="space-y-2 pt-1 border-t border-border/50">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Subtasks / Checklist ({subtasks.length})
-                    </Label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={addSubtask}
-                      className="h-6 text-[11px] text-primary hover:text-primary px-2"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Tambah Subtask
-                    </Button>
-                  </div>
+              {/* Subtasks Checklist */}
+              <div className="space-y-2 pt-1 border-t border-border/50">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Subtasks / Checklist ({subtasks.length})
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={addSubtask}
+                    className="h-6 text-[11px] text-primary hover:text-primary px-2"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Tambah Subtask
+                  </Button>
+                </div>
 
+                {subtasks.length > 0 && (
                   <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                     {subtasks.map((st, idx) => (
                       <div key={st.id || idx} className="flex items-center gap-2">
@@ -383,37 +426,35 @@ export function QuickAddModal({
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
-              {/* ADVANCED / FULL DETAIL SECTION */}
-              {showAdvanced && (
-                <div className="space-y-3 pt-3 border-t border-border/60">
+              {/* Additional Notes & Duration */}
+              <div className="space-y-3 pt-2 border-t border-border/50">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Catatan / Deskripsi Tambahan</Label>
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Tulis catatan, link referensi, atau detail tambahan..."
+                    className="min-h-[65px] text-xs resize-none rounded-lg"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs font-medium">Catatan / Deskripsi Tambahan</Label>
-                    <Textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Detail catatan tambahan..."
-                      className="min-h-[70px] text-xs resize-none rounded-lg"
+                    <Label className="text-xs font-medium">Estimasi Waktu (Menit)</Label>
+                    <Input
+                      type="number"
+                      min="5"
+                      max="480"
+                      value={duration}
+                      onChange={(e) => setDuration(e.target.value ? parseInt(e.target.value) : '')}
+                      className="h-9 text-xs rounded-lg"
                     />
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs font-medium">Estimasi Waktu (Menit)</Label>
-                      <Input
-                        type="number"
-                        min="5"
-                        max="480"
-                        value={duration}
-                        onChange={(e) => setDuration(e.target.value ? parseInt(e.target.value) : '')}
-                        className="h-9 text-xs rounded-lg"
-                      />
-                    </div>
-                  </div>
                 </div>
-              )}
+              </div>
             </div>
           )}
         </div>
@@ -433,7 +474,7 @@ export function QuickAddModal({
             onClick={handleSave}
             className="rounded-xl text-xs h-10 font-semibold px-5 shadow-sm"
           >
-            {editingTodo ? 'Simpan Perubahan' : 'Terapkan & Simpan'}
+            {editingTodo ? 'Simpan Perubahan' : 'Simpan Task'}
           </Button>
         </DialogFooter>
       </DialogContent>

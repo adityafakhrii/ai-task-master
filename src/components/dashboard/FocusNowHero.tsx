@@ -40,8 +40,9 @@ export function FocusNowHero({
               <CheckCircle2 className="h-3.5 w-3.5" />
               <span>Semua Tugas Tuntas</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-50">
-              Semua beres. Good job! 🎉
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-50 flex items-center gap-2">
+              <span>Semua beres. Good job!</span>
+              <Sparkles className="h-6 w-6 text-amber-400" />
             </h2>
             <p className="text-sm text-slate-300 max-w-lg leading-relaxed">
               Tidak ada task mendesak yang tertunda. Nikmati waktu istirahat atau masukkan task baru untuk esok hari.
