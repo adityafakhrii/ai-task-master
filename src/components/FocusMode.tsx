@@ -1,183 +1,337 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Play, Pause, RotateCcw, Sparkles, CheckCircle2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
+import { Play, Pause, RotateCcw, Sparkles, CheckCircle2, X, Plus, Clock, FileText, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { sliceTask } from '@/services/ai';
+import { Todo, extractSubtasks, serializeSubtasks, SubtaskItem } from '@/lib/taskUtils';
+import confetti from 'canvas-confetti';
 
 export interface FocusModeProps {
-    taskId: string;
-    taskTitle: string;
-    estimatedMinutes?: number | null;
-    onComplete?: () => void;
-    onClose?: () => void;
+  task: Todo;
+  whyNow?: string;
+  onComplete: (id: string) => void;
+  onClose: () => void;
+  onUpdateSubtasks?: (id: string, newDescription: string) => void;
 }
 
-export function FocusMode({ taskId, taskTitle, estimatedMinutes, onComplete, onClose }: FocusModeProps) {
-    const [timeLeft, setTimeLeft] = useState((estimatedMinutes || 25) * 60);
-    const [isActive, setIsActive] = useState(false);
-    const [subtasks, setSubtasks] = useState<{ title: string, completed: boolean }[]>([]);
-    const [isLoadingSlicing, setIsLoadingSlicing] = useState(false);
-    const { toast } = useToast();
+export function FocusMode({
+  task,
+  whyNow,
+  onComplete,
+  onClose,
+  onUpdateSubtasks
+}: FocusModeProps) {
+  const { toast } = useToast();
 
-    const totalTime = (estimatedMinutes || 25) * 60;
-    const progress = ((totalTime - timeLeft) / totalTime) * 100;
+  // Timer state
+  const defaultMinutes = task.estimated_duration_minutes || (task.priority === 'high' ? 45 : 25);
+  const [selectedMinutes, setSelectedMinutes] = useState(defaultMinutes);
+  const [timeLeft, setTimeLeft] = useState(defaultMinutes * 60);
+  const [isActive, setIsActive] = useState(false);
 
-    useEffect(() => {
-        let interval: NodeJS.Timeout | null = null;
+  // Subtasks & Notes
+  const { cleanDescription, subtasks: initialSubtasks } = extractSubtasks(task.description);
+  const [subtasks, setSubtasks] = useState<SubtaskItem[]>(initialSubtasks);
+  const [notes, setNotes] = useState('');
+  const [isSlicingLoading, setIsSlicingLoading] = useState(false);
+  const [newSubtaskInput, setNewSubtaskInput] = useState('');
 
-        if (isActive && timeLeft > 0) {
-            interval = setInterval(() => {
-                setTimeLeft(time => time - 1);
-            }, 1000);
-        } else if (timeLeft === 0 && isActive) {
-            setIsActive(false);
-            toast({
-                title: "Waktu Habis!",
-                description: "Bagus banget! Istirahat bentar ya.",
-            });
-            // Optionally ring a bell here
-        }
+  // Update timer if selectedMinutes changes
+  const setTimerPreset = (mins: number) => {
+    setIsActive(false);
+    setSelectedMinutes(mins);
+    setTimeLeft(mins * 60);
+  };
 
-        return () => {
-            if (interval) clearInterval(interval);
-        };
-    }, [isActive, timeLeft, toast]);
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (isActive && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft(t => t - 1);
+      }, 1000);
+    } else if (timeLeft === 0 && isActive) {
+      setIsActive(false);
+      try {
+        confetti({ particleCount: 50, spread: 60 });
+      } catch {}
+      toast({
+        title: 'Sesi Fokus Selesai! 👏',
+        description: 'Bagus sekali! Ambil nafas sebentar atau lanjutkan jika belum selesai.'
+      });
+    }
 
-    const toggleTimer = () => setIsActive(!isActive);
-    const resetTimer = () => {
-        setIsActive(false);
-        setTimeLeft(totalTime);
+    return () => {
+      if (interval) clearInterval(interval);
     };
+  }, [isActive, timeLeft, toast]);
 
-    const formatTime = (seconds: number) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    };
+  const toggleTimer = () => setIsActive(!isActive);
+  const resetTimer = () => {
+    setIsActive(false);
+    setTimeLeft(selectedMinutes * 60);
+  };
 
-    const sliceTaskWithAI = async () => {
-        try {
-            setIsLoadingSlicing(true);
-            const { data, error } = await supabase.functions.invoke('ai-parse-task', {
-                body: {
-                    text: `Pecahkan tugas ini menjadi 3-5 sub-tugas kecil yang dapat ditindaklanjuti. Judul Tugas: ${taskTitle}`,
-                    type: 'slice'
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Subtask helpers
+  const toggleSubtask = (index: number) => {
+    const updated = [...subtasks];
+    updated[index].completed = !updated[index].completed;
+    setSubtasks(updated);
+
+    if (onUpdateSubtasks) {
+      const serialized = serializeSubtasks(cleanDescription, updated);
+      onUpdateSubtasks(task.id, serialized);
+    }
+  };
+
+  const addManualSubtask = () => {
+    if (!newSubtaskInput.trim()) return;
+    const updated = [...subtasks, { id: `st-${Date.now()}`, title: newSubtaskInput.trim(), completed: false }];
+    setSubtasks(updated);
+    setNewSubtaskInput('');
+
+    if (onUpdateSubtasks) {
+      const serialized = serializeSubtasks(cleanDescription, updated);
+      onUpdateSubtasks(task.id, serialized);
+    }
+  };
+
+  const handleSliceWithAI = async () => {
+    try {
+      setIsSlicingLoading(true);
+      const generated = await sliceTask(task.title);
+      const newItems: SubtaskItem[] = generated.map((st, idx) => ({
+        id: `st-ai-${Date.now()}-${idx}`,
+        title: st,
+        completed: false
+      }));
+
+      const merged = [...subtasks, ...newItems];
+      setSubtasks(merged);
+
+      if (onUpdateSubtasks) {
+        const serialized = serializeSubtasks(cleanDescription, merged);
+        onUpdateSubtasks(task.id, serialized);
+      }
+
+      toast({ title: 'AI berhasil memecah subtask!' });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Gagal memecah task', description: err.message });
+    } finally {
+      setIsSlicingLoading(false);
+    }
+  };
+
+  const handleFinishTask = () => {
+    try {
+      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    } catch {}
+    onComplete(task.id);
+    onClose();
+  };
+
+  const totalTime = selectedMinutes * 60;
+  const progressPercent = ((totalTime - timeLeft) / totalTime) * 100;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-xl flex flex-col justify-between p-4 sm:p-8 overflow-y-auto animate-in fade-in duration-200">
+      {/* Top Bar Navigation */}
+      <div className="flex items-center justify-between max-w-4xl w-full mx-auto">
+        <div className="flex items-center gap-2">
+          <span className="px-3 py-1 rounded-full bg-primary/10 text-primary font-semibold text-xs uppercase tracking-wider">
+            Focus Mode
+          </span>
+          {task.category && (
+            <span className="text-xs text-muted-foreground">• {task.category}</span>
+          )}
+        </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClose}
+          className="h-9 px-3 text-xs gap-1.5 text-muted-foreground hover:text-foreground rounded-xl"
+        >
+          <X className="h-4 w-4" />
+          <span>Keluar Fokus</span>
+        </Button>
+      </div>
+
+      {/* Main Focus Area */}
+      <div className="max-w-2xl w-full mx-auto my-auto py-6 space-y-8 text-center">
+        {/* Task Title & AI Reason */}
+        <div className="space-y-3">
+          <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-foreground leading-tight">
+            {task.title}
+          </h1>
+
+          {whyNow && (
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary/80 text-secondary-foreground text-xs sm:text-sm font-medium border border-border">
+              <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              <span>
+                <strong>Why now?</strong> {whyNow}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Minimal Circular / Digital Timer */}
+        <div className="space-y-4">
+          <div className="text-6xl sm:text-8xl font-mono font-bold tracking-tighter text-foreground select-none">
+            {formatTime(timeLeft)}
+          </div>
+
+          {/* Timer Controls */}
+          <div className="flex items-center justify-center gap-3">
+            <Button
+              size="lg"
+              onClick={toggleTimer}
+              className="h-14 px-8 rounded-2xl text-base font-semibold shadow-md gap-2"
+            >
+              {isActive ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current" />}
+              <span>{isActive ? 'Pause' : 'Start Timer'}</span>
+            </Button>
+
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={resetTimer}
+              className="h-14 w-14 rounded-2xl border-slate-300 dark:border-slate-700"
+              title="Reset Timer"
+            >
+              <RotateCcw className="h-5 w-5 text-muted-foreground" />
+            </Button>
+          </div>
+
+          {/* Preset Buttons (25m / 45m / 50m) */}
+          <div className="flex items-center justify-center gap-2 pt-2">
+            {[15, 25, 45, 50].map((mins) => (
+              <button
+                key={mins}
+                type="button"
+                onClick={() => setTimerPreset(mins)}
+                className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
+                  selectedMinutes === mins
+                    ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
+                    : 'bg-muted/60 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {mins}m
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Subtasks Section */}
+        <div className="text-left bg-card rounded-2xl border border-border p-5 space-y-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Subtasks & Langkah Kerja ({subtasks.filter(s => s.completed).length}/{subtasks.length})
+            </h3>
+
+            {subtasks.length === 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSliceWithAI}
+                disabled={isSlicingLoading}
+                className="h-7 text-xs bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 gap-1 rounded-lg"
+              >
+                <Sparkles className="h-3 w-3 text-amber-500" />
+                <span>{isSlicingLoading ? 'Menganalisis...' : 'Pecah pake AI'}</span>
+              </Button>
+            )}
+          </div>
+
+          {subtasks.length > 0 && (
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              {subtasks.map((st, idx) => (
+                <div
+                  key={st.id || idx}
+                  onClick={() => toggleSubtask(idx)}
+                  className={`flex items-start gap-3 p-2.5 rounded-xl cursor-pointer transition-colors ${
+                    st.completed ? 'bg-muted/40 opacity-70' : 'hover:bg-muted/50 bg-secondary/30'
+                  }`}
+                >
+                  <CheckCircle2
+                    className={`h-5 w-5 shrink-0 mt-0.5 ${
+                      st.completed ? 'text-primary' : 'text-slate-300 dark:text-slate-600'
+                    }`}
+                  />
+                  <span className={`text-sm ${st.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                    {st.title}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Quick Subtask Input */}
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="text"
+              value={newSubtaskInput}
+              onChange={(e) => setNewSubtaskInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addManualSubtask();
                 }
-            });
+              }}
+              placeholder="Tambah subtask..."
+              className="h-9 px-3 text-xs bg-background border border-border rounded-xl flex-1 focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={addManualSubtask}
+              disabled={!newSubtaskInput.trim()}
+              className="h-9 px-3 text-xs rounded-xl"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
 
-            if (error) throw error;
+        {/* Scratchpad Session Notes */}
+        <div className="text-left bg-card/60 rounded-2xl border border-border p-4 space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <FileText className="h-3.5 w-3.5" />
+            <span>Catatan Sesi (Scratchpad)</span>
+          </div>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Tulis ide kilat, link, atau catatan sementara saat fokus..."
+            className="min-h-[70px] text-xs resize-none rounded-xl border-border bg-background/50"
+          />
+        </div>
+      </div>
 
-            if (data && data.subtasks && Array.isArray(data.subtasks)) {
-                setSubtasks(data.subtasks.map((st: string) => ({ title: st, completed: false })));
-                toast({ title: 'Tugas berhasil dipecah AI' });
-            } else {
-                toast({ title: 'Gagal memecah tugas', description: 'Format tidak sesuai', variant: 'destructive' });
-            }
-        } catch (err: any) {
-            toast({ variant: 'destructive', title: 'Error', description: err.message });
-        } finally {
-            setIsLoadingSlicing(false);
-        }
-    };
+      {/* Bottom Completion Action */}
+      <div className="max-w-md w-full mx-auto pt-4 border-t border-border flex items-center gap-3">
+        <Button
+          variant="outline"
+          onClick={onClose}
+          className="flex-1 h-12 rounded-xl text-xs sm:text-sm"
+        >
+          Tunda / Kembali
+        </Button>
 
-    const toggleSubtask = (index: number) => {
-        const newSubtasks = [...subtasks];
-        newSubtasks[index].completed = !newSubtasks[index].completed;
-        setSubtasks(newSubtasks);
-    };
-
-    return (
-        <Card className="w-full max-w-md mx-auto border-primary/20 bg-background/95 backdrop-blur">
-            <CardHeader className="text-center pb-2">
-                <Badge variant="outline" className="w-fit mx-auto mb-2 text-primary border-primary/30 bg-primary/5">
-                    Focus Mode
-                </Badge>
-                <CardTitle className="text-xl line-clamp-2">{taskTitle}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-
-                {/* Timer Display */}
-                <div className="text-center space-y-4">
-                    <div className="relative inline-flex items-center justify-center">
-                        <svg className="w-48 h-48 transform -rotate-90">
-                            <circle
-                                cx="96" cy="96" r="88"
-                                className="stroke-muted fill-none"
-                                strokeWidth="8"
-                            />
-                            <circle
-                                cx="96" cy="96" r="88"
-                                className="stroke-primary fill-none transition-all duration-1000 ease-linear"
-                                strokeWidth="8"
-                                strokeDasharray={2 * Math.PI * 88}
-                                strokeDashoffset={2 * Math.PI * 88 * (1 - (timeLeft / totalTime))}
-                            />
-                        </svg>
-                        <div className="absolute flex flex-col items-center justify-center">
-                            <span className="text-5xl font-bold tracking-tighter text-primary">
-                                {formatTime(timeLeft)}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="flex justify-center gap-2">
-                        <Button size="icon" variant={isActive ? "outline" : "default"} onClick={toggleTimer} className="h-12 w-12 rounded-full">
-                            {isActive ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-1" />}
-                        </Button>
-                        <Button size="icon" variant="outline" onClick={resetTimer} className="h-12 w-12 rounded-full">
-                            <RotateCcw className="h-5 w-5" />
-                        </Button>
-                    </div>
-                </div>
-
-                {/* AI Task Slicing */}
-                <div className="pt-4 border-t space-y-3">
-                    <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Sub-Tugas</h4>
-                        {subtasks.length === 0 && (
-                            <Button size="sm" variant="secondary" className="h-8 text-xs bg-primary/10 text-primary hover:bg-primary/20" onClick={sliceTaskWithAI} disabled={isLoadingSlicing}>
-                                <Sparkles className="h-3 w-3 mr-1" />
-                                {isLoadingSlicing ? 'Mikir...' : 'Pecah pake AI'}
-                            </Button>
-                        )}
-                    </div>
-
-                    {subtasks.length > 0 && (
-                        <div className="space-y-2">
-                            {subtasks.map((task, idx) => (
-                                <div
-                                    key={idx}
-                                    className="flex items-start gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
-                                    onClick={() => toggleSubtask(idx)}
-                                >
-                                    <CheckCircle2 className={task.completed ? "h-5 w-5 text-primary shrink-0" : "h-5 w-5 text-muted-foreground/30 shrink-0"} />
-                                    <span className={task.completed ? "text-sm line-through text-muted-foreground" : "text-sm"}>
-                                        {task.title}
-                                    </span>
-                                </div>
-                            ))}
-                            <Progress value={(subtasks.filter(t => t.completed).length / subtasks.length) * 100} className="h-1.5 mt-2" />
-                        </div>
-                    )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-2">
-                    {onClose && (
-                        <Button variant="outline" className="flex-1" onClick={onClose}>
-                            Tutup
-                        </Button>
-                    )}
-                    {onComplete && (
-                        <Button className="flex-1" onClick={onComplete}>
-                            Tandai Selesai
-                        </Button>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
-    );
+        <Button
+          onClick={handleFinishTask}
+          className="flex-1 h-12 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-md"
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          <span>Tandai Selesai</span>
+        </Button>
+      </div>
+    </div>
+  );
 }

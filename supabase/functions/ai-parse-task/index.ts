@@ -8,7 +8,7 @@ const corsHeaders = {
 
 // Input validation constants
 const MAX_TEXT_LENGTH = 10000;
-const VALID_TYPES = ['parse', 'summary', 'search', 'anomaly', 'slice', 'reschedule', 'theme_suggest'];
+const VALID_TYPES = ['parse', 'summary', 'search', 'anomaly', 'slice', 'breakdown', 'reschedule', 'theme_suggest', 'prioritize', 'daily_review'];
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -86,26 +86,62 @@ serve(async (req) => {
       const dayAfter = new Date(today.getTime() + 172800000).toISOString().split('T')[0];
       const nextWeek = new Date(today.getTime() + 604800000).toISOString().split('T')[0];
 
-      systemPrompt = `Anda adalah asisten manajemen tugas. Ubah deskripsi menjadi JSON terstruktur dengan schema:
+      systemPrompt = `Anda adalah asisten AI eksekusi tugas untuk seorang mentor bootcamp coding (CODEPOLITAN).
+Tugas Anda adalah mem-parse deskripsi/percakapan natural menjadi task terstruktur dan actionable.
+Kembalikan JSON dengan skema:
 {
   "title": string,
+  "description": string,
   "due_date": string | null,
   "priority": "low" | "medium" | "high",
   "estimated_duration_minutes": number | null,
-  "category": string | null,
+  "category": "Bootcamp" | "Materi" | "Review & Grading" | "Event / Closing" | "Community & Chat" | "Admin" | "Personal",
   "tags": string[],
-  "summary": string
+  "subtasks": string[],
+  "summary": string,
+  "why_now": string
 }
 
 Tanggal hari ini: ${todayStr}
 Aturan tanggal Indonesia:
+- "hari ini" / "today" = ${todayStr}
 - "besok" = ${tomorrow}
 - "lusa" = ${dayAfter}  
 - "minggu depan" = ${nextWeek}
-- "pagi" = 09:00 WIB, "siang" = 12:00 WIB, "sore" = 15:00 WIB, "malam" = 19:00 WIB
-
-Jika ada waktu spesifik, gabungkan dengan tanggal dalam format ISO 8601 dengan timezone WIB (UTC+7).
-Buat summary singkat 1-2 kalimat yang informatif.`;
+- Waktu: "pagi" = 09:00 WIB, "siang" = 12:00 WIB, "sore" = 15:00 WIB, "malam" = 19:00 WIB.
+- Jika ada waktu spesifik, gabungkan dengan tanggal dalam format ISO 8601 (contoh: "${tomorrow}T09:00:00+07:00").
+- subtasks: berikan 2-4 langkah konkret, actionable, dan spesifik.
+- why_now: alasan 1 kalimat singkat mengapa task ini penting atau mendesak.`;
+    } else if (type === 'prioritize') {
+      systemPrompt = `Anda adalah AI Execution Coach untuk mentor bootcamp.
+Pengguna akan mengirimkan daftar task hari ini dalam bentuk JSON.
+Analisis urgensi, deadline, dan impact terhadap peserta/acara.
+Tentukan urutan eksekusi terbaik hari ini beserta alasan strategi eksekusi.
+Return JSON:
+{
+  "strategy_summary": string,
+  "recommended_order": [
+    {
+      "id": string,
+      "title": string,
+      "priority": "high" | "medium" | "low",
+      "order": number,
+      "reason": string
+    }
+  ],
+  "quick_wins_suggestion": string
+}`;
+    } else if (type === 'daily_review') {
+      systemPrompt = `Anda adalah AI Daily Reviewer untuk personal execution.
+Pengguna mengirimkan JSON berisi { completedTasks: [], incompleteTasks: [] }.
+Analisis performa hari ini dengan objektif, tajam, dan tidak klise.
+Return JSON:
+{
+  "headline": string,
+  "insight": string,
+  "priority_alert": string | null,
+  "suggested_focus_tomorrow": string[]
+}`;
     } else if (type === 'summary') {
       systemPrompt = 'Buat ringkasan tugas harian. Return JSON: {"today_list": [{"title": string, "id": string, "priority": string}], "urgent": [{"title": string, "id": string}], "progress_summary": string, "recommendations": string[]}';
     } else if (type === 'search') {
@@ -119,7 +155,7 @@ Return JSON dengan format:
   "insights": ["Temuan 1", "Temuan 2"],
   "recommendations": ["Saran 1", "Saran 2"]
 }`;
-    } else if (type === 'slice') {
+    } else if (type === 'slice' || type === 'breakdown') {
       systemPrompt = `Anda adalah asisten produktivitas. Pengguna akan memberikan sebuah tugas yang mungkin besar atau tidak spesifik.
 Ubah tugas tersebut menjadi 3 hingga 5 sub-tugas (langkah-langkah kecil) yang spesifik dan actionable.
 Return JSON dengan satu property "subtasks" yang berisi array string. Contoh: {"subtasks": ["Siapkan data outline", "Hubungi vendor", "Draft email pengajuan"]}`;

@@ -1,64 +1,64 @@
-import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { MobileLayout } from '@/components/MobileLayout';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { Plus, Bell, Calendar, User, LogOut, CheckCircle2, Search, Loader2, Sparkles, AlertCircle, Edit, Trash2, Clock, SparklesIcon, ListFilter, ArrowUpDown, MoreVertical, Flame } from 'lucide-react';
-import { format, isToday } from 'date-fns';
-import { id as idLocale } from 'date-fns/locale';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import Footer from '@/components/Footer';
-import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from '@/components/ui/label';
-import { parseTask, dailySummary, detectAnomaly, rescheduleTasks, semanticSearch } from '@/services/ai';
-import { Input as TextInput } from '@/components/ui/input';
-import { ToastAction } from '@/components/ui/toast';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FocusMode } from '@/components/FocusMode';
-import confetti from 'canvas-confetti';
-import { ModeToggle } from '@/components/mode-toggle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Progress } from '@/components/ui/progress';
-
-
-interface Todo {
-  id: string;
-  user_id: string;
-  title: string;
-  description: string | null;
-  completed: boolean;
-  priority: 'low' | 'medium' | 'high';
-  category: string | null;
-  created_at: string;
-  updated_at: string;
-  due_date: string | null;
-  estimated_duration_minutes: number | null;
-  tags: string[] | null;
-}
+import { useToast } from '@/hooks/use-toast';
+import { AppLayout, NavTab } from '@/components/layout/AppLayout';
+import { FocusNowHero } from '@/components/dashboard/FocusNowHero';
+import { TodayTaskGroups } from '@/components/dashboard/TodayTaskGroups';
+import { AIPrioritizerModal } from '@/components/dashboard/AIPrioritizerModal';
+import { QuickAddModal } from '@/components/tasks/QuickAddModal';
+import { InboxView } from '@/components/tasks/InboxView';
+import { AllTasksView } from '@/components/tasks/AllTasksView';
+import { DailyReviewView } from '@/components/review/DailyReviewView';
+import { FocusMode } from '@/components/FocusMode';
+import {
+  Todo,
+  groupTodayTasks,
+  getFocusNowTask,
+  isTaskDueToday,
+  isTaskOverdue
+} from '@/lib/taskUtils';
 
 export default function Todos() {
-  const { user, signOut, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Navigation tab state (synced with URL ?tab=...)
+  const initialTab = (searchParams.get('tab') as NavTab) || 'today';
+  const [activeTab, setActiveTab] = useState<NavTab>(initialTab);
+
+  // Dialog & Modal states
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+  const [prioritizeModalOpen, setPrioritizeModalOpen] = useState(false);
+  const [activeFocusTask, setActiveFocusTask] = useState<Todo | null>(null);
+
+  // Sync tab with URL
+  const handleTabChange = (tab: NavTab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      navigate('/auth');
+    }
+  }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      setQuickAddOpen(true);
+    }
+  }, [searchParams]);
+
+  // Fetch todos with TanStack Query
   const { data: todos = [], isLoading: todosLoading, error: queryError } = useQuery<Todo[]>({
     queryKey: ['todos'],
     queryFn: async () => {
@@ -72,22 +72,17 @@ export default function Todos() {
     enabled: !!user
   });
 
-  // Search states
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchResultIds, setSearchResultIds] = useState<string[] | null>(null);
-
   useEffect(() => {
     if (queryError) {
       toast({
-        variant: "destructive",
-        title: "Waduh Error",
+        variant: 'destructive',
+        title: 'Gagal memuat data',
         description: (queryError as any).message
       });
     }
   }, [queryError, toast]);
 
-  // React Query Mutations
+  // Mutations
   const insertMutation = useMutation({
     mutationFn: async (newTodo: Omit<Todo, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'completed'>) => {
       const { error } = await supabase
@@ -99,15 +94,13 @@ export default function Todos() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "Tugas baru berhasil dibuat!" });
+      toast({ title: 'Task berhasil ditambahkan! 🚀' });
       queryClient.invalidateQueries({ queryKey: ['todos'] });
-      setFormData({ title: '', description: '', priority: 'medium', category: '', due_date: null });
-      setAiHints(null);
-      setNlInput('');
-      setDialogOpen(false);
+      setEditingTodo(null);
+      setQuickAddOpen(false);
     },
     onError: (error: any) => {
-      toast({ variant: "destructive", title: "Gagal membuat tugas", description: error.message });
+      toast({ variant: 'destructive', title: 'Gagal membuat task', description: error.message });
     }
   });
 
@@ -120,16 +113,13 @@ export default function Todos() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "Tugas berhasil diupdate, mantap!" });
+      toast({ title: 'Task diperbarui.' });
       queryClient.invalidateQueries({ queryKey: ['todos'] });
-      setFormData({ title: '', description: '', priority: 'medium', category: '', due_date: null });
       setEditingTodo(null);
-      setDialogOpen(false);
-      setAiHints(null);
-      setNlInput('');
+      setQuickAddOpen(false);
     },
     onError: (error: any) => {
-      toast({ variant: "destructive", title: "Gagal mengupdate tugas", description: error.message });
+      toast({ variant: 'destructive', title: 'Gagal memperbarui task', description: error.message });
     }
   });
 
@@ -142,16 +132,16 @@ export default function Todos() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "Tugas berhasil dihapus, bye-bye!" });
+      toast({ title: 'Task telah dihapus.' });
       queryClient.invalidateQueries({ queryKey: ['todos'] });
     },
     onError: (error: any) => {
-      toast({ variant: "destructive", title: "Gagal menghapus tugas", description: error.message });
+      toast({ variant: 'destructive', title: 'Gagal menghapus task', description: error.message });
     }
   });
 
   const toggleCompleteMutation = useMutation({
-    mutationFn: async ({ id, completed }: { id: string, completed: boolean }) => {
+    mutationFn: async ({ id, completed }: { id: string; completed: boolean }) => {
       const { error } = await supabase
         .from('todos')
         .update({ completed })
@@ -166,1478 +156,290 @@ export default function Todos() {
       );
       return { previousTodos };
     },
-    onError: (err, variables, context) => {
+    onError: (err: any, _, context) => {
       if (context?.previousTodos) {
         queryClient.setQueryData(['todos'], context.previousTodos);
       }
-      toast({ variant: "destructive", title: "Gagal memperbarui status", description: err.message });
+      toast({ variant: 'destructive', title: 'Gagal update status', description: err.message });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['todos'] });
     }
   });
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    priority: 'medium' as 'low' | 'medium' | 'high',
-    category: '',
-    due_date: null as Date | null
-  });
-  const [nlInput, setNlInput] = useState('');
-  const [aiHints, setAiHints] = useState<{ recommendedPriority?: 'low' | 'medium' | 'high'; estimatedMinutes?: number | null; suggestions?: { subtasks?: string[]; checklist?: string[]; templates?: string[] } } | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const auditLogRef = useRef<Record<string, { snapshot: Todo; timestamp: string; actor: string }[]>>({});
-  const roastFetchedRef = useRef(false);
-  const [summaryOpen, setSummaryOpen] = useState(false);
-  const [dailyData, setDailyData] = useState<any | null>(null);
-  const [anomalyOpen, setAnomalyOpen] = useState(false);
-  const [anomalyData, setAnomalyData] = useState<any | null>(null);
-  const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'overdue'>('active');
-  const [focusTask, setFocusTask] = useState<Todo | null>(null);
-
-  // Filter states
-  const [filterPriority, setFilterPriority] = useState<'all' | 'low' | 'medium' | 'high'>('all');
-  const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [filterDateRange, setFilterDateRange] = useState<'all' | 'today' | 'week' | 'overdue'>('all');
-  const [filterTag, setFilterTag] = useState<string>('all');
-  const [inlineRoast, setInlineRoast] = useState<string | null>(null);
-  const [roastLoading, setRoastLoading] = useState(false);
-
-  // Sort state
-  const [sortBy, setSortBy] = useState<'urgency' | 'priority' | 'due_date' | 'created_at' | 'title'>('urgency');
-
-  // Loading states
-  const [aiLoading, setAiLoading] = useState(false);
-  const [submitLoading, setSubmitLoading] = useState(false);
-  const [summaryLoading, setSummaryLoading] = useState(false);
-  const [anomalyLoading, setAnomalyLoading] = useState(false);
-  const [rescheduleLoading, setRescheduleLoading] = useState(false);
-  const [signOutLoading, setSignOutLoading] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState<Record<string, boolean>>({});
-  const [completeLoading, setCompleteLoading] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
-  }, [user, authLoading, navigate]);
-
-  // Handle daily inline roast (100% lokal, tanpa API)
-  useEffect(() => {
-    if (todosLoading || todos.length === 0) return;
-    if (roastFetchedRef.current) return;
-
-    const overdueHighPriority = todos.filter(t =>
-      !t.completed &&
-      t.priority === 'high' &&
-      t.due_date &&
-      new Date(t.due_date) < new Date()
-    );
-
-    if (overdueHighPriority.length > 0) {
-      const todayStr = new Date().toDateString();
-      const storedDataStr = localStorage.getItem('catetyuk_daily_roast');
-
-      // Cek cache hari ini
-      if (storedDataStr) {
-        try {
-          const storedData = JSON.parse(storedDataStr);
-          if (storedData.date === todayStr && storedData.message) {
-            setInlineRoast(storedData.message);
-            roastFetchedRef.current = true;
-            return;
-          }
-        } catch (e) { /* invalid cache */ }
-      }
-
-      // Generate roast lokal
-      roastFetchedRef.current = true;
-      const count = overdueHighPriority.length;
-      const taskNames = overdueHighPriority.slice(0, 3).map(t => `"${t.title}"`).join(', ');
-      const roasts = [
-        `Bro, lu punya ${count} tugas penting yang udah lewat deadline (${taskNames}). Mau nunggu sampe kapan? Sampe tugas-nya pensiun duluan? 🫠`,
-        `Woy, ${count} tugas high priority telat semua: ${taskNames}. Ini mah bukan prokrastinasi, ini speedrun gagal hidup 💀`,
-        `Gokil ${count} tugas penting kelewat (${taskNames}). Lu kira deadline itu saran doang ya? Bukan, itu DEAD-line bro! ☠️`,
-        `Mantap ${count} tugas overdue termasuk ${taskNames}. Kalau nunda itu olahraga, lu udah dapet medali emas olimpiade 🏅`,
-        `Ada ${count} tugas penting nganggur: ${taskNames}. Tugas lu nunggu dikerjain kayak nunggu gebetan bales chat — gak bakal selesai sendiri 😮‍💨`,
-        `Halo? ${count} tugas high priority lewat deadline (${taskNames})! Lu mau bikin mereka jadi fosil dulu baru dikerjain? 🦴`,
-        `Buset ${count} tugas penting telat: ${taskNames}. Kalender lu nangis liat ini. Literally nangis. 😭`,
-        `${count} tugas overdue (${taskNames}). Lu tau gak bedanya lu sama kucing? Kucing tidur 16 jam tapi gak punya deadline 🐱`,
-      ];
-      const message = roasts[Math.floor(Math.random() * roasts.length)];
-      setInlineRoast(message);
-      localStorage.setItem('catetyuk_daily_roast', JSON.stringify({ date: todayStr, message }));
-    } else {
-      setInlineRoast(null);
-      roastFetchedRef.current = true;
-    }
-  }, [todos, todosLoading]);
-
-  const location = useLocation();
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('action') === 'new') {
-      openNewDialog();
-    }
-  }, [location.search]);
-
-  const handleSemanticSearch = async () => {
-    if (!searchQuery.trim()) {
-      setSearchResultIds(null);
-      return;
-    }
-    try {
-      setSearchLoading(true);
-      const results = await semanticSearch(searchQuery, todos);
-      if (Array.isArray(results)) {
-        setSearchResultIds(results);
-        if (results.length === 0) {
-          toast({ description: "Gak nemu tugas yang cocok dengan pencarian lo." });
-        } else {
-          toast({ description: `Nemu ${results.length} tugas yang cocok!` });
-        }
-      } else {
-        setSearchResultIds([]);
-      }
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Pencarian Gagal', description: error.message });
-    } finally {
-      setSearchLoading(false);
-    }
+  // Action helpers
+  const handleToggleComplete = (id: string, completed: boolean) => {
+    toggleCompleteMutation.mutate({ id, completed });
   };
 
-  const clearSearch = () => {
-    setSearchQuery('');
-    setSearchResultIds(null);
+  const handleStartFocus = (task: Todo) => {
+    setActiveFocusTask(task);
   };
 
-  const isDueSoon = (todo: Todo) => {
-    if (!todo.due_date || todo.completed) return false;
-    const diff = new Date(todo.due_date).getTime() - new Date().getTime();
-    return diff > 0 && diff < 24 * 60 * 60 * 1000;
-  };
-
-  // Get unique categories and tags for filter dropdowns
-  const uniqueCategories = Array.from(new Set(todos.map(t => t.category).filter(Boolean)));
-  const uniqueTags = Array.from(new Set(todos.flatMap(t => t.tags || []).filter(Boolean)));
-
-  // Filter and sort function
-  const filterAndSortTodos = (todosToFilter: Todo[]) => {
-    let filtered = [...todosToFilter];
-
-    // Apply semantic search filter
-    if (searchResultIds !== null) {
-      filtered = filtered.filter(t => searchResultIds.includes(t.id));
-    }
-
-    // Apply priority filter
-    if (filterPriority !== 'all') {
-      filtered = filtered.filter(t => t.priority === filterPriority);
-    }
-
-    // Apply category filter
-    if (filterCategory !== 'all') {
-      filtered = filtered.filter(t => t.category === filterCategory);
-    }
-
-    // Apply tag filter
-    if (filterTag !== 'all') {
-      filtered = filtered.filter(t => t.tags?.includes(filterTag));
-    }
-
-    // Apply date range filter
-    if (filterDateRange !== 'all') {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-      filtered = filtered.filter(t => {
-        if (!t.due_date) return false;
-        const dueDate = new Date(t.due_date);
-
-        switch (filterDateRange) {
-          case 'today':
-            return dueDate >= today && dueDate < new Date(today.getTime() + 24 * 60 * 60 * 1000);
-          case 'week':
-            return dueDate >= today && dueDate <= weekFromNow;
-          case 'overdue':
-            return dueDate < now;
-          default:
-            return true;
-        }
-      });
-    }
-
-    // 3. Sorting
-    return filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'urgency': {
-          // Priority order: high > medium > low
-          const priorityOrder = { high: 3, medium: 2, low: 1 };
-          const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
-
-          if (priorityDiff !== 0) return priorityDiff;
-
-          // If same priority, sort by deadline (closest first)
-          if (a.due_date && b.due_date) {
-            return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-          }
-          if (a.due_date) return -1;
-          if (b.due_date) return 1;
-
-          // If no deadline, sort by created date (newest first)
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        }
-
-        case 'priority': {
-          const pOrder = { high: 3, medium: 2, low: 1 };
-          return pOrder[b.priority] - pOrder[a.priority];
-        }
-
-        case 'due_date':
-          // Tasks with no due date go to the end
-          if (!a.due_date && !b.due_date) return 0;
-          if (!a.due_date) return 1;
-          if (!b.due_date) return -1;
-          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-
-        case 'created_at':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-
-        case 'title':
-          return a.title.localeCompare(b.title);
-
-        default:
-          return 0;
-      }
-    });
-  };
-
-  const applyAIAssist = async (textToParse?: string) => {
-    const text = textToParse || nlInput;
-    if (!text.trim()) return;
-    try {
-      setAiLoading(true);
-      const result = await parseTask(text.trim());
-
-      // Parse due_date if available
-      let parsedDueDate: Date | null = null;
-      if (result.due_date && typeof result.due_date === 'string') {
-        try {
-          parsedDueDate = new Date(result.due_date);
-          if (isNaN(parsedDueDate.getTime())) {
-            parsedDueDate = null;
-          }
-        } catch {
-          parsedDueDate = null;
-        }
-      }
-
-      // Auto-populate description with AI summary
-      const aiGeneratedDescription = result.summary || formData.description;
-
-      setFormData({
-        title: result.title || formData.title,
-        description: aiGeneratedDescription,
-        priority: (result.priority === 'low' || result.priority === 'medium' || result.priority === 'high') ? result.priority : formData.priority,
-        category: result.category || formData.category,
-        due_date: parsedDueDate
-      });
-      setAiHints({
-        recommendedPriority: (result.priority === 'low' || result.priority === 'medium' || result.priority === 'high') ? result.priority : undefined,
-        estimatedMinutes: typeof result.estimated_duration_minutes === 'number' ? result.estimated_duration_minutes : null,
-        suggestions: result.suggestions || {}
-      });
-      if (result.tags && Array.isArray(result.tags)) {
-        const tagCat = result.tags.find((t: string) => typeof t === 'string' && t.length > 0);
-        if (tagCat) setFormData((p) => ({ ...p, category: p.category || tagCat }));
-      }
-      toast({ title: 'AI berhasil memproses deskripsi tugas' });
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Gagal AI parse', description: err.message });
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const startVoiceRecording = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      toast({ variant: 'destructive', title: 'Waduh', description: 'Browser lo gak support fitur suara nih (coba pake Chrome).' });
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'id-ID';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => {
-      setIsRecording(true);
-      toast({ title: 'Lagi dengerin...', description: 'Ngomong aja tugas lo apa' });
-    };
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setNlInput(transcript);
-      setIsRecording(false);
-      // Automatically trigger AI assist right after recording
-      setTimeout(() => {
-        applyAIAssist(transcript);
-      }, 500);
-    };
-
-    recognition.onerror = (event: any) => {
-      setIsRecording(false);
-      toast({ variant: 'destructive', title: 'Error', description: 'Gagal dengerin suara: ' + event.error });
-    };
-
-    recognition.onend = () => {
-      setIsRecording(false);
-    };
-
-    recognition.start();
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.title.trim()) return;
-
-    try {
-      setSubmitLoading(true);
-      if (editingTodo) {
-        const prev = { ...editingTodo };
-        await updateMutation.mutateAsync({
-          id: editingTodo.id,
-          title: formData.title,
-          description: formData.description || null,
-          priority: formData.priority,
-          category: formData.category || null,
-          due_date: formData.due_date ? formData.due_date.toISOString() : null,
-          estimated_duration_minutes: aiHints?.estimatedMinutes || null,
-          tags: aiHints?.suggestions?.subtasks || null
-        });
-        const log = auditLogRef.current[prev.id] || [];
-        auditLogRef.current[prev.id] = [...log, { snapshot: prev, timestamp: new Date().toISOString(), actor: user!.id }];
-      } else {
-        await insertMutation.mutateAsync({
-          title: formData.title,
-          description: formData.description || null,
-          priority: formData.priority,
-          category: formData.category || null,
-          due_date: formData.due_date ? formData.due_date.toISOString() : null,
-          estimated_duration_minutes: aiHints?.estimatedMinutes || null,
-          tags: aiHints?.suggestions?.subtasks || null
-        });
-      }
-    } catch {
-      // Error is handled by mutations
-    } finally {
-      setSubmitLoading(false);
-    }
-  };
-
-  // Calculate Daily Stats
-  const todayTasks = todos.filter(t => t.due_date && isToday(new Date(t.due_date)));
-  const completedTodayTasks = todayTasks.filter(t => t.completed);
-  const isDailyTargetMet = todayTasks.length > 0 && todayTasks.length === completedTodayTasks.length;
-  const isPerfectDay = isDailyTargetMet || (todos.filter(t => !t.completed).length === 0 && todos.length > 0);
-
-  const runDailySummary = async () => {
-    try {
-      setSummaryLoading(true);
-      const data = await dailySummary(todos);
-      setDailyData(data);
-      setSummaryOpen(true);
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Gagal membuat ringkasan', description: err.message });
-    } finally {
-      setSummaryLoading(false);
-    }
-  };
-
-  const handleAutoReschedule = async () => {
-    const overdueTasks = todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date());
-    if (overdueTasks.length === 0) return;
-
-    try {
-      setRescheduleLoading(true);
-      const data = overdueTasks.map(t => ({ id: t.id, title: t.title, priority: t.priority }));
-      const response = await rescheduleTasks(data);
-
-      if (response && response.rescheduled_tasks) {
-        let successCount = 0;
-        for (const item of response.rescheduled_tasks) {
-          const { error } = await supabase
-            .from('todos')
-            .update({ due_date: item.suggested_due_date })
-            .eq('id', item.id)
-            .eq('user_id', user!.id);
-
-          if (!error) successCount++;
-        }
-
-        if (successCount > 0) {
-          toast({ title: 'Jadwal Pintar AI', description: `Berhasil mengatur ulang ${successCount} tugas!` });
-          queryClient.invalidateQueries({ queryKey: ['todos'] });
-        }
-      }
-    } catch (error: any) {
-      const isRateLimit = error.message?.includes('429') || error.message?.toLowerCase()?.includes('rate limit');
-      toast({ variant: 'destructive', title: 'Error AI Reschedule', description: isRateLimit ? 'AI sedang sibuk, coba lagi dalam beberapa detik ya!' : error.message });
-    } finally {
-      setRescheduleLoading(false);
-    }
-  };
-
-  const toggleComplete = async (todo: Todo) => {
-    const updatedStatus = !todo.completed;
-
-    if (updatedStatus) {
-      // Check if this makes the daily target met!
-      const remainingToday = todayTasks.filter(t => !t.completed && t.id !== todo.id).length;
-      const willMeetTarget = (remainingToday === 0 && todayTasks.length > 0) ||
-        (todos.filter(t => !t.completed && t.id !== todo.id).length === 0 && todos.length > 0);
-
-      if (willMeetTarget) {
-        confetti({
-          particleCount: 150,
-          spread: 80,
-          origin: { y: 0.5 },
-          colors: ['#f97316', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6']
-        });
-        toast({ title: '🎉 Mantap Jiwa!', description: 'Level keditjayaan: Maksimal! Semua tugas lu beres cuy!' });
-      }
-    }
-
-    try {
-      setCompleteLoading(prev => ({ ...prev, [todo.id]: true }));
-      await toggleCompleteMutation.mutateAsync({ id: todo.id, completed: updatedStatus });
-    } catch {
-      // Error is handled by mutations
-    } finally {
-      setCompleteLoading(prev => ({ ...prev, [todo.id]: false }));
-    }
-  };
-
-  const runAnomalyDetection = async () => {
-    try {
-      setAnomalyLoading(true);
-
-      // Prepare task data for anomaly detection - include all todos with their metadata
-      const taskData = todos.map(todo => ({
-        id: todo.id,
-        title: todo.title,
-        priority: todo.priority,
-        category: todo.category,
-        completed: todo.completed,
-        created_at: todo.created_at,
-        updated_at: todo.updated_at,
-        due_date: todo.due_date,
-        estimated_duration_minutes: todo.estimated_duration_minutes
-      }));
-
-      const res = await detectAnomaly(taskData);
-      setAnomalyData(res);
-      setAnomalyOpen(true);
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Deteksi gagal', description: err.message });
-    } finally {
-      setAnomalyLoading(false);
-    }
-  };
-
-  const deleteTodo = async (id: string) => {
-    try {
-      setDeleteLoading(prev => ({ ...prev, [id]: true }));
-      await deleteMutation.mutateAsync(id);
-    } catch {
-      // Error is handled by mutations
-    } finally {
-      setDeleteLoading(prev => ({ ...prev, [id]: false }));
-    }
-  };
-
-  const openEditDialog = (todo: Todo) => {
+  const handleEdit = (todo: Todo) => {
     setEditingTodo(todo);
-    setFormData({
-      title: todo.title,
-      description: todo.description || '',
-      priority: todo.priority,
-      category: todo.category || '',
-      due_date: todo.due_date ? new Date(todo.due_date) : null
+    setQuickAddOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    deleteMutation.mutate(id);
+  };
+
+  const handleMoveToTomorrow = (id: string) => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    updateMutation.mutate({ id, due_date: tomorrow.toISOString() });
+    toast({ title: 'Task dipindahkan ke besok (09:00 WIB)' });
+  };
+
+  const handleMoveToToday = (id: string) => {
+    const today = new Date();
+    today.setHours(18, 0, 0, 0);
+    updateMutation.mutate({ id, due_date: today.toISOString() });
+    toast({ title: 'Task dijadikan target hari ini' });
+  };
+
+  const handleMoveToInbox = (id: string) => {
+    updateMutation.mutate({ id, due_date: null, category: 'Inbox' });
+    toast({ title: 'Task dikembalikan ke Inbox' });
+  };
+
+  const handleToggleWaiting = (id: string, currentWaiting: boolean) => {
+    const target = todos.find(t => t.id === id);
+    if (!target) return;
+    let newTags = target.tags || [];
+    if (currentWaiting) {
+      newTags = newTags.filter(t => t.toLowerCase() !== 'waiting' && t.toLowerCase() !== 'menunggu');
+    } else {
+      newTags = [...newTags, 'waiting'];
+    }
+    updateMutation.mutate({ id, tags: newTags });
+    toast({ title: currentWaiting ? 'Status waiting dihapus' : 'Ditandai sebagai waiting' });
+  };
+
+  const handleUpdateSubtasks = (id: string, newDescription: string) => {
+    updateMutation.mutate({ id, description: newDescription });
+  };
+
+  const handleQuickAddSubmit = (taskData: {
+    title: string;
+    description: string | null;
+    priority: 'low' | 'medium' | 'high';
+    category: string | null;
+    due_date: string | null;
+    estimated_duration_minutes: number | null;
+    tags: string[] | null;
+  }) => {
+    if (editingTodo) {
+      updateMutation.mutate({
+        id: editingTodo.id,
+        ...taskData
+      });
+    } else {
+      insertMutation.mutate(taskData);
+    }
+  };
+
+  const handleFastInboxAdd = (fastTitle: string) => {
+    insertMutation.mutate({
+      title: fastTitle,
+      description: null,
+      priority: 'medium',
+      category: 'Inbox',
+      due_date: null,
+      estimated_duration_minutes: 25,
+      tags: ['inbox']
     });
-    setDialogOpen(true);
   };
 
-  const openNewDialog = () => {
-    setEditingTodo(null);
-    setFormData({ title: '', description: '', priority: 'medium', category: '', due_date: null });
-    setAiHints(null);
-    setNlInput('');
-    setDialogOpen(true);
-  };
+  // Grouped task derivations
+  const {
+    criticalTasks,
+    importantTasks,
+    quickWinsTasks,
+    upNextTasks,
+    waitingTasks,
+    inboxTasks
+  } = groupTodayTasks(todos);
 
-  const handleSignOut = async () => {
-    setSignOutLoading(true);
-    await signOut();
-    setSignOutLoading(false);
-    navigate('/auth');
-  };
+  const { task: focusNowTask, reason: focusNowReason } = getFocusNowTask(todos);
 
-  const priorityColors = {
-    low: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-    medium: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-    high: 'bg-red-500/10 text-red-500 border-red-500/20'
-  };
-
-  // Memoize filtered and sorted lists so React correctly redraws them on searchQuery change
-  const activeTodos = filterAndSortTodos(todos.filter(t => {
-    if (t.completed) return false;
-    if (!t.due_date) return true;
-    return new Date(t.due_date) >= new Date();
-  }));
-
-  const overdueTodos = filterAndSortTodos(todos.filter(t => {
-    if (t.completed) return false;
-    if (!t.due_date) return false;
-    return new Date(t.due_date) < new Date();
-  }));
-
-  const completedTodos = filterAndSortTodos(todos.filter(t => t.completed)).sort((a, b) => {
-    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-  });
-
-  if (todosLoading || authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Sabar ya bestie...</p>
-      </div>
-    );
-  }
+  // Daily statistics for header & badges
+  const todayTasksList = todos.filter(t => isTaskDueToday(t) || isTaskOverdue(t));
+  const todayCompletedCount = todayTasksList.filter(t => t.completed).length;
+  const todayTotalCount = todayTasksList.length;
 
   return (
-    <MobileLayout>
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
-        <div className="container mx-auto p-4 pb-24 max-w-4xl">
-          {/* Mobile-First Header */}
-          <header className="mb-6 space-y-4" role="banner">
-            {/* Top Bar: Branding + User Actions */}
-            <div className="flex items-center justify-between gap-4">
-              {/* Branding */}
-              <div className="flex items-center gap-2">
-                <img src="/CatetYuk3.png" alt="CatetYuk Logo" className="h-14 w-14 flex-shrink-0" aria-hidden="true" />
-                <div className="min-w-0 flex items-center gap-3">
-                  <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold leading-tight">CatetYuk</h1>
-                    <p className="text-xs text-muted-foreground">Simplify your task</p>
-                  </div>
-                </div>
-              </div>
+    <AppLayout
+      activeTab={activeTab}
+      onTabChange={handleTabChange}
+      onQuickAdd={() => {
+        setEditingTodo(null);
+        setQuickAddOpen(true);
+      }}
+      todayCompletedCount={todayCompletedCount}
+      todayTotalCount={todayTotalCount}
+      inboxCount={inboxTasks.length}
+    >
+      {/* 1. TODAY TAB (MAIN DASHBOARD) */}
+      {activeTab === 'today' && (
+        <div className="space-y-8 animate-in fade-in duration-200">
+          {/* Dominant Hero: Focus Now */}
+          <FocusNowHero
+            task={focusNowTask}
+            reason={focusNowReason}
+            onStartFocus={handleStartFocus}
+            onCompleteTask={(id) => handleToggleComplete(id, true)}
+            onQuickAdd={() => {
+              setEditingTodo(null);
+              setQuickAddOpen(true);
+            }}
+            isLoading={todosLoading}
+          />
 
-              {/* Theme Toggle, Streak & User Menu */}
-              <div className="flex items-center gap-3">
-                {/* Daily Streak/Badge */}
-                <div title={isPerfectDay ? "Target Harian Tercapai!" : "Selesaikan tugas hari ini untuk api!"} className={cn(
-                  "flex flex-col items-center justify-center rounded-lg border bg-card p-1 pb-1.5 min-w-[2.5rem] transition-all",
-                  isPerfectDay ? "border-orange-500 shadow-sm shadow-orange-500/20" : "border-border/50 opacity-70"
-                )}>
-                  <Flame className={cn("h-4 w-4", isPerfectDay ? "text-orange-500 animate-pulse" : "text-muted-foreground")} />
-                  <span className="text-[10px] font-bold leading-none mt-0.5">{completedTodayTasks.length}/{todayTasks.length > 0 ? todayTasks.length : '-'}</span>
-                </div>
-
-                <ModeToggle />
-                <div className="hidden md:flex items-center gap-2">
-                  <Button
-                    onClick={() => navigate('/profile')}
-                    variant="ghost"
-                    size="sm"
-                    className="gap-2"
-                    aria-label="Buka profil pengguna"
-                  >
-                    <User className="h-4 w-4" aria-hidden="true" />
-                    <span className="hidden sm:inline">{user?.user_metadata.full_name || user?.email?.split('@')[0] || 'Profil'}</span>
-                  </Button>
-                  <Button
-                    onClick={handleSignOut}
-                    variant="ghost"
-                    size="sm"
-                    aria-label="Keluar dari aplikasi"
-                    loading={signOutLoading}
-                  >
-                    <LogOut className="h-4 w-4" aria-hidden="true" />
-                    <span className="sr-only">{signOutLoading ? 'Cabut dulu...' : 'Keluar'}</span>
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Search Bar restored */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Cari tugas pake perasaan (misal: kerjaan klien)..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSemanticSearch();
-                  }}
-                  className="pl-9 pr-8 bg-card"
-                  aria-label="Cari tugas semantik"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={clearSearch}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs font-semibold"
-                    aria-label="Reset pencarian"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-              <Button
-                onClick={handleSemanticSearch}
-                loading={searchLoading}
-                className="w-full sm:w-auto bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20"
-                variant="secondary"
-              >
-                Cari AI
-              </Button>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2">
-              {/* AI Features - Horizontal Scroll on Mobile */}
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                <Button
-                  onClick={runDailySummary}
-                  variant="outline"
-                  size="sm"
-                  className="whitespace-nowrap"
-                  aria-label="Lihat ringkasan harian"
-                  loading={summaryLoading}
-                >
-                  {summaryLoading ? 'Tunggu...' : 'Ringkasan'}
-                </Button>
-                <Button
-                  onClick={runAnomalyDetection}
-                  variant="outline"
-                  size="sm"
-                  className="whitespace-nowrap"
-                  aria-label="Deteksi anomali tugas"
-                  loading={anomalyLoading}
-                >
-                  {anomalyLoading ? 'Analisis...' : 'Anomali'}
-                </Button>
-
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-9 border-dashed whitespace-nowrap">
-                      <ListFilter className="mr-2 h-4 w-4" />
-                      Filter & Urutkan
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-4" align="start">
-                    <div className="grid gap-4">
-                      <div className="space-y-2">
-                        <h4 className="font-medium leading-none">Filter Tugas</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Atur tampilan tugas sesuai kebutuhan.
-                        </p>
-                      </div>
-                      <div className="grid gap-2">
-                        <Select value={filterPriority} onValueChange={(value: any) => setFilterPriority(value)}>
-                          <SelectTrigger className="w-full" aria-label="Filter berdasarkan prioritas">
-                            <SelectValue placeholder="Prioritas" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Semua Prioritas</SelectItem>
-                            <SelectItem value="high">Penting Banget</SelectItem>
-                            <SelectItem value="medium">Biasa Aja</SelectItem>
-                            <SelectItem value="low">Santai</SelectItem>
-                          </SelectContent>
-                        </Select>
-
-                        <Select value={filterCategory} onValueChange={setFilterCategory}>
-                          <SelectTrigger className="w-full" aria-label="Filter berdasarkan kategori">
-                            <SelectValue placeholder="Kategori" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Semua Kategori</SelectItem>
-                            {uniqueCategories.map((cat) => (
-                              <SelectItem key={cat} value={cat!}>{cat}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        <Select value={filterDateRange} onValueChange={(value: any) => setFilterDateRange(value)}>
-                          <SelectTrigger className="w-full" aria-label="Filter berdasarkan deadline">
-                            <SelectValue placeholder="Deadline" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Semua Deadline</SelectItem>
-                            <SelectItem value="overdue">Telat</SelectItem>
-                            <SelectItem value="today">Hari Ini</SelectItem>
-                            <SelectItem value="week">Minggu Ini</SelectItem>
-                          </SelectContent>
-                        </Select>
-
-                        <Select value={filterTag} onValueChange={setFilterTag}>
-                          <SelectTrigger className="w-full" aria-label="Filter berdasarkan tag">
-                            <SelectValue placeholder="Tag" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Semua Tag</SelectItem>
-                            {uniqueTags.map((tag) => (
-                              <SelectItem key={tag} value={tag}>#{tag}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                          <SelectTrigger className="w-full bg-secondary/20 border-primary/20" aria-label="Urutkan tugas berdasarkan">
-                            <ArrowUpDown className="h-4 w-4 mr-2 text-primary" aria-hidden="true" />
-                            <SelectValue placeholder="Urutkan" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="urgency">Urgensi (Default)</SelectItem>
-                            <SelectItem value="priority">Prioritas</SelectItem>
-                            <SelectItem value="due_date">Tanggal Deadline</SelectItem>
-                            <SelectItem value="created_at">Tanggal Dibuat</SelectItem>
-                            <SelectItem value="title">Judul (A-Z)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-
-            {/* Filter Section */}
-            {/* Filter & Sort Section */}
-
-            {/* Filter & Sort Section */}
-
-
-            {/* <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
-               ... (Previous implementation)
-            </div> */}
-          </header>
-
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button
-                onClick={openNewDialog}
-                className="w-full mb-6 hidden md:flex"
-                size="lg"
-                aria-label="Tambah tugas baru"
-              >
-                <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
-                <span className="truncate">Tambah Tugas Baru</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="w-full h-[100dvh] sm:h-auto sm:max-h-[85vh] sm:max-w-lg p-0 gap-0 rounded-none sm:rounded-lg overflow-hidden flex flex-col">
-              <form onSubmit={handleSubmit} className="flex flex-col h-full w-full overflow-hidden">
-                <div className="p-6 pb-2">
-                  <DialogHeader>
-                    <DialogTitle>{editingTodo ? 'Edit Tugas' : 'Bikin Tugas Baru'}</DialogTitle>
-                    <DialogDescription>
-                      {editingTodo ? 'Update detail tugas lo di bawah ini.' : 'Tambahin tugas baru ke list lo.'}
-                    </DialogDescription>
-                  </DialogHeader>
-                </div>
-
-                <ScrollArea className="flex-1 w-full">
-                  <div className="p-6 pt-2 space-y-6">
-                    {/* AI Section */}
-                    <div className="space-y-3 pb-4 border-b">
-                      <div className="space-y-2">
-                        <Label>Deskripsi Bahasa Alami (atau pakai suara 🎙️)</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="contoh: besok pagi kirim laporan ke klien"
-                            value={nlInput}
-                            onChange={(e) => setNlInput(e.target.value)}
-                            className="border-border focus-visible:ring-0 focus-visible:border-primary/50"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={startVoiceRecording}
-                            className={cn("flex-shrink-0 transition-all", isRecording && "bg-red-100 text-red-600 border-red-300 animate-pulse")}
-                            aria-label="Rekam suara"
-                          >
-                            {isRecording ? <Loader2 className="h-4 w-4 animate-spin" /> : <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 lucide lucide-mic"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /></svg>}
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button
-                          onClick={applyAIAssist}
-                          variant="secondary"
-                          type="button"
-                          loading={aiLoading}
-                          className="w-full sm:w-auto bg-primary/10 hover:bg-primary/20 text-primary transition-all duration-300 transform hover:scale-105"
-                        >
-                          {aiLoading ? 'Lagi mikir...' : 'Gas Analisis AI'}
-                        </Button>
-                        {typeof aiHints?.estimatedMinutes === 'number' && (
-                          <Badge variant="outline" className="justify-center sm:justify-start bg-primary/5 border-primary/20 text-primary py-2 sm:py-0">Estimasi: {aiHints?.estimatedMinutes} menit</Badge>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Manual Inputs */}
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="title">Judul Tugas</Label>
-                        <Input
-                          id="title"
-                          placeholder="Mau ngapain hari ini?"
-                          value={formData.title}
-                          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="description">Deskripsi</Label>
-                        <Textarea
-                          id="description"
-                          placeholder="Kasih detail dikit..."
-                          value={formData.description}
-                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                          rows={3}
-                        />
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="priority">Seberapa Penting?</Label>
-                          <Select
-                            value={formData.priority}
-                            onValueChange={(value: 'low' | 'medium' | 'high') =>
-                              setFormData({ ...formData, priority: value })
-                            }
-                          >
-                            <SelectTrigger id="priority">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent z-index={150}>
-                              <SelectItem value="low">Santai</SelectItem>
-                              <SelectItem value="medium">Biasa Aja</SelectItem>
-                              <SelectItem value="high">Penting Banget</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="category">Kategori</Label>
-                          <Input
-                            id="category"
-                            placeholder="misal: Kerjaan, Pribadi"
-                            value={formData.category}
-                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Tanggal & Jam Jatuh Tempo (Opsional)</Label>
-                        <Popover modal={true}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !formData.due_date && "text-muted-foreground"
-                              )}
-                            >
-                              <Calendar className="mr-2 h-4 w-4" />
-                              {formData.due_date ? format(formData.due_date, "PPP 'pukul' HH:mm", { locale: idLocale }) : "Pilih tanggal & jam"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <CalendarComponent
-                              mode="single"
-                              selected={formData.due_date || undefined}
-                              onSelect={(date) => setFormData({ ...formData, due_date: date || null })}
-                              initialFocus
-                            />
-                            <div className="p-3 border-t border-border">
-                              <Label className="text-sm mb-2 block">Jam</Label>
-                              <div className="flex gap-2 items-center">
-                                <Select
-                                  value={formData.due_date ? formData.due_date.getHours().toString() : undefined}
-                                  onValueChange={(value) => {
-                                    const hours = parseInt(value);
-                                    const newDate = formData.due_date ? new Date(formData.due_date) : new Date();
-                                    newDate.setHours(hours);
-                                    setFormData({ ...formData, due_date: newDate });
-                                  }}
-                                >
-                                  <SelectTrigger className="w-[70px]">
-                                    <SelectValue placeholder="HH" />
-                                  </SelectTrigger>
-                                  <SelectContent position="popper" className="max-h-[200px]">
-                                    {Array.from({ length: 24 }).map((_, i) => (
-                                      <SelectItem key={i} value={i.toString()}>
-                                        {i.toString().padStart(2, '0')}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <span className="text-muted-foreground">:</span>
-                                <Select
-                                  value={formData.due_date ? formData.due_date.getMinutes().toString() : undefined}
-                                  onValueChange={(value) => {
-                                    const minutes = parseInt(value);
-                                    const newDate = formData.due_date ? new Date(formData.due_date) : new Date();
-                                    newDate.setMinutes(minutes);
-                                    setFormData({ ...formData, due_date: newDate });
-                                  }}
-                                >
-                                  <SelectTrigger className="w-[70px]">
-                                    <SelectValue placeholder="MM" />
-                                  </SelectTrigger>
-                                  <SelectContent position="popper" className="max-h-[200px]">
-                                    {Array.from({ length: 60 }).map((_, i) => (
-                                      <SelectItem key={i} value={i.toString()}>
-                                        {i.toString().padStart(2, '0')}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-                  </div>
-                </ScrollArea>
-
-                <div className="p-6 pt-4 border-t bg-background">
-                  <Button type="submit" className="w-full" loading={submitLoading}>
-                    {submitLoading ? 'Tunggu bentar yak...' : editingTodo ? 'Update Tugas' : 'Simpan Tugas'}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-
-          {/* Todo List with Tabs */}
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'active' | 'completed')} className="w-full">
-            <TabsList className="flex w-full h-auto p-0 bg-transparent gap-2 sm:gap-4 border-b rounded-none mb-6 justify-start overflow-x-auto no-scrollbar sm:justify-start" aria-label="Filter tugas berdasarkan status">
-              <TabsTrigger
-                value="active"
-                className="flex-1 sm:flex-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-primary data-[state=active]:font-bold border-b-2 border-transparent rounded-none px-2 py-3 transition-none"
-                aria-label={`Tugas belum selesai, ${activeTodos.length} tugas`}
-              >
-                Belum Beres ({activeTodos.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="overdue"
-                className="flex-1 sm:flex-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-red-500 data-[state=active]:text-red-600 data-[state=active]:font-bold border-b-2 border-transparent rounded-none px-2 py-3 transition-none text-red-500/80"
-                aria-label="Tugas lewat deadline"
-              >
-                Lewat Deadline ({overdueTodos.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="completed"
-                className="flex-1 sm:flex-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-primary data-[state=active]:font-bold border-b-2 border-transparent rounded-none px-2 py-3 transition-none"
-                aria-label={`Tugas sudah selesai, ${completedTodos.length} tugas`}
-              >
-                Udah Beres ({completedTodos.length})
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Active Todos Tab */}
-            <TabsContent value="active" className="space-y-3">
-              {focusTask ? (
-                <div className="py-4 animation-in fade-in zoom-in duration-300">
-                  <FocusMode
-                    taskId={focusTask.id}
-                    taskTitle={focusTask.title}
-                    estimatedMinutes={focusTask.estimated_duration_minutes}
-                    onClose={() => setFocusTask(null)}
-                    onComplete={() => {
-                      toggleComplete(focusTask);
-                      setFocusTask(null);
-                    }}
-                  />
-                </div>
-              ) : activeTodos.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">
-                      {todos.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())).length === 0
-                        ? "Tidak ada tugas yang aktif saat ini. Cek tab 'Lewat Deadline' juga ya!"
-                        : "Gak ada tugas yang sesuai filter. Coba ubah filter-nya!"}
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                activeTodos.map((todo) => (
-                  <Card 
-                    key={todo.id} 
-                    className={cn(
-                      "hover:shadow-md transition-shadow",
-                      isDueSoon(todo) && "border-amber-500/50 shadow-sm shadow-amber-500/10 animate-[pulse_3s_infinite]"
-                    )}
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-start gap-3">
-                          {completeLoading[todo.id] ? (
-                            <div className="mt-1 flex items-center justify-center w-6 h-6">
-                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                            </div>
-                          ) : (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); toggleComplete(todo); }}
-                              className={cn(
-                                "mt-0.5 flex items-center justify-center w-6 h-6 rounded-full border-2 transition-colors duration-200 shrink-0",
-                                todo.completed
-                                  ? "bg-primary border-primary text-primary-foreground"
-                                  : "border-muted-foreground/30 hover:border-primary/50 text-transparent hover:text-primary/20"
-                              )}
-                              aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'} `}
-                            >
-                              <CheckCircle2 className="h-4 w-4" strokeWidth={3} />
-                            </button>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <CardTitle className="text-lg">
-                              {todo.title}
-                            </CardTitle>
-                            {todo.description && (
-                              <CardDescription className="mt-1">{todo.description}</CardDescription>
-                            )}
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              <Badge variant="outline" className={priorityColors[todo.priority]}>
-                                {todo.priority}
-                              </Badge>
-                              {todo.category && (
-                                <Badge variant="outline">{todo.category}</Badge>
-                              )}
-                              {todo.due_date && (
-                                <Badge 
-                                  variant="outline" 
-                                  className={cn("gap-1", isDueSoon(todo) && "bg-amber-500/10 text-amber-600 border-amber-500/30 font-semibold")}
-                                >
-                                  <Calendar className="h-3 w-3" />
-                                  {format(new Date(todo.due_date), "dd MMM, HH:mm", { locale: idLocale })}
-                                </Badge>
-                              )}
-                              {todo.estimated_duration_minutes && (
-                                <Badge variant="outline" className="gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {todo.estimated_duration_minutes}m
-                                </Badge>
-                              )}
-                            </div>
-                            {todo.tags && todo.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {todo.tags.slice(0, 3).map((tag, idx) => (
-                                  <span key={idx} className="text-xs text-muted-foreground">#{tag}</span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex gap-2 pt-2 border-t">
-                          <Button
-                            onClick={() => setFocusTask(todo)}
-                            size="sm"
-                            variant="default"
-                            className="flex-1 bg-primary/90 hover:bg-primary"
-                            aria-label={`Mode Fokus untuk tugas ${todo.title} `}
-                          >
-                            <SparklesIcon className="h-4 w-4 mr-1" aria-hidden="true" />
-                            <span className="text-xs font-semibold">Fokus</span>
-                          </Button>
-                          <Button
-                            onClick={() => openEditDialog(todo)}
-                            size="sm"
-                            variant="ghost"
-                            className="flex-1"
-                            aria-label={`Edit tugas ${todo.title} `}
-                          >
-                            <Edit className="h-4 w-4 mr-1" aria-hidden="true" />
-                            <span className="text-xs">Edit</span>
-                          </Button>
-                          <Button
-                            onClick={() => deleteTodo(todo.id)}
-                            size="sm"
-                            variant="ghost"
-                            className="flex-1 text-destructive hover:text-destructive"
-                            aria-label={`Hapus tugas ${todo.title} `}
-                            loading={deleteLoading[todo.id]}
-                          >
-                            {!deleteLoading[todo.id] && (
-                              <>
-                                <Trash2 className="h-4 w-4 mr-1" aria-hidden="true" />
-                                <span className="text-xs">Hapus</span>
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                ))
-              )}
-            </TabsContent>
-
-            {/* Overdue Todos Tab */}
-            <TabsContent value="overdue" className="space-y-3">
-              {overdueTodos.length > 0 && (
-                <div className="flex flex-col gap-3 mb-4">
-                  <div className="flex justify-end p-2 bg-red-50/50 border border-red-100 rounded-md items-center gap-3">
-                    <span className="text-sm text-red-600 flex-1 ml-2">Tugas menumpuk? Biar AI aturin ulang 🪄</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-semibold"
-                      onClick={handleAutoReschedule}
-                      loading={rescheduleLoading}
-                    >
-                      <SparklesIcon className="h-4 w-4 mr-2" />
-                      Auto-Reschedule
-                    </Button>
-                  </div>
-
-                  {inlineRoast && (
-                    <div className="p-4 bg-orange-50 dark:bg-orange-950/30 rounded-xl border border-orange-200 dark:border-orange-900 flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-orange-800 dark:text-orange-400">AI Roast Hari Ini 🔥</p>
-                        <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">{inlineRoast}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {overdueTodos.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">
-                      {todos.filter(t => !t.completed && t.due_date && new Date(t.due_date) < new Date()).length === 0
-                        ? "Aman! Gak ada tugas yang lewat deadline."
-                        : "Gak ada tugas telat yang sesuai filter."}
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                overdueTodos.map((todo) => (
-                  <Card key={todo.id} className="hover:shadow-md transition-shadow border-red-200 bg-red-50/10">
-                    <CardHeader className="pb-3">
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-start gap-3">
-                          {completeLoading[todo.id] ? (
-                            <div className="mt-1 flex items-center justify-center w-6 h-6">
-                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                            </div>
-                          ) : (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); toggleComplete(todo); }}
-                              className={cn(
-                                "mt-0.5 flex items-center justify-center w-6 h-6 rounded-full border-2 transition-colors duration-200 shrink-0",
-                                todo.completed
-                                  ? "bg-primary border-primary text-primary-foreground"
-                                  : "border-red-500/30 hover:border-red-500/50 text-transparent hover:text-red-500/20"
-                              )}
-                              aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'} `}
-                            >
-                              <CheckCircle2 className="h-4 w-4" strokeWidth={3} />
-                            </button>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <CardTitle className="text-lg text-red-600">
-                              {todo.title}
-                            </CardTitle>
-                            {todo.description && (
-                              <CardDescription className="mt-1">{todo.description}</CardDescription>
-                            )}
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              <Badge variant="outline" className={priorityColors[todo.priority]}>
-                                {todo.priority}
-                              </Badge>
-                              {todo.category && (
-                                <Badge variant="outline">{todo.category}</Badge>
-                              )}
-                              {todo.due_date && (
-                                <Badge variant="destructive" className="gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {format(new Date(todo.due_date), "dd MMM, HH:mm", { locale: idLocale })}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 pt-2 border-t">
-                          <Button
-                            onClick={() => openEditDialog(todo)}
-                            size="sm"
-                            variant="ghost"
-                            className="flex-1"
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            <span className="text-xs">Edit</span>
-                          </Button>
-                          <Button
-                            onClick={() => deleteTodo(todo.id)}
-                            size="sm"
-                            variant="ghost"
-                            className="flex-1 text-destructive hover:text-destructive"
-                            loading={deleteLoading[todo.id]}
-                          >
-                            {!deleteLoading[todo.id] && (
-                              <>
-                                <Trash2 className="h-4 w-4 mr-1" />
-                                <span className="text-xs">Hapus</span>
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                ))
-              )}
-            </TabsContent>
-
-            {/* Completed Todos Tab */}
-            <TabsContent value="completed" className="space-y-3">
-              {completedTodos.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">
-                      {todos.filter(t => t.completed).length === 0
-                        ? "Belum ada tugas yang selesai. Ayo semangat!"
-                        : "Gak ada tugas selesai yang sesuai filter. Coba ubah filter-nya!"}
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                completedTodos.map((todo) => (
-                  <Card key={todo.id} className="hover:shadow-md transition-shadow bg-secondary/20">
-                    <CardHeader className="pb-3">
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-start gap-3">
-                          {completeLoading[todo.id] ? (
-                            <div className="mt-1 flex items-center justify-center w-6 h-6">
-                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                            </div>
-                          ) : (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); toggleComplete(todo); }}
-                              className={cn(
-                                "mt-0.5 flex items-center justify-center w-6 h-6 rounded-full border-2 transition-colors duration-200 shrink-0",
-                                todo.completed
-                                  ? "bg-primary border-primary text-primary-foreground"
-                                  : "border-muted-foreground/30 hover:border-primary/50 text-transparent hover:text-primary/20"
-                              )}
-                              aria-label={`Tandai tugas ${todo.title} sebagai ${todo.completed ? 'belum selesai' : 'selesai'} `}
-                            >
-                              <CheckCircle2 className="h-4 w-4" strokeWidth={3} />
-                            </button>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <CardTitle className="text-lg line-through text-muted-foreground">
-                              {todo.title}
-                            </CardTitle>
-                            {todo.description && (
-                              <CardDescription className="mt-1">{todo.description}</CardDescription>
-                            )}
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              <Badge variant="outline" className={priorityColors[todo.priority]}>
-                                {todo.priority}
-                              </Badge>
-                              {todo.category && (
-                                <Badge variant="outline">{todo.category}</Badge>
-                              )}
-                              {todo.due_date && (
-                                <Badge variant="outline" className="gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {format(new Date(todo.due_date), "dd MMM, HH:mm", { locale: idLocale })}
-                                </Badge>
-                              )}
-                              {todo.estimated_duration_minutes && (
-                                <Badge variant="outline" className="gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {todo.estimated_duration_minutes}m
-                                </Badge>
-                              )}
-                            </div>
-                            {todo.tags && todo.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {todo.tags.slice(0, 3).map((tag, idx) => (
-                                  <span key={idx} className="text-xs text-muted-foreground">#{tag}</span>
-                                ))}
-                              </div>
-                            )}
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              Selesai {format(new Date(todo.updated_at), "dd MMM yyyy, HH:mm", { locale: idLocale })}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex justify-end pt-2 border-t">
-                          <Button
-                            onClick={() => deleteTodo(todo.id)}
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            aria-label={`Hapus tugas ${todo.title} `}
-                            loading={deleteLoading[todo.id]}
-                          >
-                            {!deleteLoading[todo.id] && (
-                              <>
-                                <Trash2 className="h-4 w-4 mr-1" aria-hidden="true" />
-                                <span className="text-xs">Hapus</span>
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                ))
-              )}
-            </TabsContent>
-          </Tabs>
+          {/* Grouped Today Execution Buckets */}
+          <TodayTaskGroups
+            criticalTasks={criticalTasks}
+            importantTasks={importantTasks}
+            quickWinsTasks={quickWinsTasks}
+            upNextTasks={upNextTasks}
+            waitingTasks={waitingTasks}
+            onToggleComplete={handleToggleComplete}
+            onStartFocus={handleStartFocus}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onMoveToTomorrow={handleMoveToTomorrow}
+            onToggleWaiting={handleToggleWaiting}
+            onUpdateSubtasks={handleUpdateSubtasks}
+            onQuickAdd={() => {
+              setEditingTodo(null);
+              setQuickAddOpen(true);
+            }}
+            onPrioritizeAI={() => setPrioritizeModalOpen(true)}
+          />
         </div>
-        {summaryOpen && dailyData && (
-          <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
-            <DialogContent className="w-full max-w-lg max-h-[85vh] flex flex-col p-6 rounded-xl overflow-hidden bg-background">
-              <DialogHeader className="pb-4 border-b">
-                <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                  <Sparkles className="h-6 w-6 text-primary animate-pulse" />
-                  Ringkasan Pintar AI
-                </DialogTitle>
-                <DialogDescription>
-                  Rangkuman produktivitas dan rekomendasi harian lo
-                </DialogDescription>
-              </DialogHeader>
-              <ScrollArea className="flex-1 pr-3 mt-4">
-                <div className="space-y-6 pb-6">
-                  {/* Progress Indicator */}
-                  {todayTasks.length > 0 && (
-                    <div className="bg-secondary/30 p-4 rounded-xl border">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-semibold">Progres Target Hari Ini</span>
-                        <span className="text-xs text-muted-foreground font-bold">
-                          {completedTodayTasks.length} dari {todayTasks.length} Selesai
-                        </span>
-                      </div>
-                      <Progress value={(completedTodayTasks.length / todayTasks.length) * 100} className="h-2.5" />
-                    </div>
-                  )}
+      )}
 
-                  {/* Urgent Card */}
-                  {dailyData.urgent && dailyData.urgent.length > 0 && (
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase tracking-wider text-red-500">Mendesak & Penting 🚨</Label>
-                      <div className="grid gap-2">
-                        {dailyData.urgent.map((u: any, i: number) => (
-                          <div key={i} className="p-3 bg-red-500/10 text-red-700 dark:text-red-400 rounded-lg border border-red-500/20 text-sm font-medium flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-red-500 flex-shrink-0 animate-ping" />
-                            {u.title}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Today List */}
-                  {dailyData.today_list && dailyData.today_list.length > 0 && (
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase tracking-wider text-primary">Rencana Hari Ini 📋</Label>
-                      <div className="bg-card border rounded-lg divide-y">
-                        {dailyData.today_list.map((t: any, i: number) => (
-                          <div key={i} className="p-3 text-sm flex items-center gap-2">
-                            <CheckCircle2 className="h-4 w-4 text-muted-foreground/50" />
-                            <span>{t.title}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Progress Summary */}
-                  {dailyData.progress_summary && (
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Analisis AI 💡</Label>
-                      <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 text-sm leading-relaxed">
-                        {dailyData.progress_summary}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Recommendations */}
-                  {dailyData.recommendations && dailyData.recommendations.length > 0 && (
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase tracking-wider text-green-600">Rekomendasi Produktivitas ✨</Label>
-                      <div className="grid gap-2">
-                        {dailyData.recommendations.map((r: any, i: number) => (
-                          <div key={i} className="p-3 bg-green-500/5 text-green-700 dark:text-green-400 rounded-lg border border-green-500/20 text-sm leading-snug">
-                            💡 {r}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </DialogContent>
-          </Dialog>
-        )}
-        {anomalyOpen && anomalyData && (
-          <Dialog open={anomalyOpen} onOpenChange={setAnomalyOpen}>
-            <DialogContent className="max-h-[80vh] flex flex-col">
-              <DialogHeader>
-                <DialogTitle>Insight Perilaku Tugas</DialogTitle>
-                <DialogDescription>Analisis pola dan anomali dari aktivitas tugas</DialogDescription>
-              </DialogHeader>
-              <div className="flex-1 overflow-y-auto p-4 border rounded-md">
-                <div className="space-y-3 pb-4">
-                  <div>
-                    <Label>Insights</Label>
-                    <div className="mt-2 space-y-1">
-                      {(anomalyData.insights || []).map((insight: string, i: number) => (
-                        <div key={i} className="text-sm">• {insight}</div>
-                      ))}
-                    </div>
-                  </div>
-                  {anomalyData.recommendations && anomalyData.recommendations.length > 0 && (
-                    <div>
-                      <Label>Rekomendasi</Label>
-                      <div className="mt-2 space-y-1">
-                        {anomalyData.recommendations.map((rec: string, i: number) => (
-                          <div key={i} className="text-sm text-muted-foreground">• {rec}</div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
-        {/* Footer hidden on mobile because we have BottomNav menu */}
-        <div className="hidden md:block">
-          <Footer />
+      {/* 2. INBOX TAB */}
+      {activeTab === 'inbox' && (
+        <div className="animate-in fade-in duration-200">
+          <InboxView
+            inboxTasks={inboxTasks}
+            onToggleComplete={handleToggleComplete}
+            onStartFocus={handleStartFocus}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onMoveToToday={handleMoveToToday}
+            onMoveToTomorrow={handleMoveToTomorrow}
+            onQuickAddText={handleFastInboxAdd}
+            onOpenQuickAddModal={() => {
+              setEditingTodo(null);
+              setQuickAddOpen(true);
+            }}
+          />
         </div>
-      </div>
-    </MobileLayout>
+      )}
+
+      {/* 3. FOCUS TAB */}
+      {activeTab === 'focus' && (
+        <div className="animate-in fade-in duration-200 space-y-6">
+          <div className="space-y-1">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              Focus Mode
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Pilih task untuk memulai sesi deep work bebas distraksi.
+            </p>
+          </div>
+
+          {focusNowTask ? (
+            <FocusNowHero
+              task={focusNowTask}
+              reason={focusNowReason}
+              onStartFocus={handleStartFocus}
+              onCompleteTask={(id) => handleToggleComplete(id, true)}
+              onQuickAdd={() => {
+                setEditingTodo(null);
+                setQuickAddOpen(true);
+              }}
+            />
+          ) : (
+            <div className="rounded-2xl border border-dashed border-border p-10 text-center bg-card/40 space-y-3">
+              <h3 className="text-base font-semibold text-foreground">
+                Tidak ada task aktif
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Semua task beres atau belum ada task yang dibuat.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 4. ALL TASKS TAB */}
+      {activeTab === 'all' && (
+        <div className="animate-in fade-in duration-200">
+          <AllTasksView
+            todos={todos}
+            onToggleComplete={handleToggleComplete}
+            onStartFocus={handleStartFocus}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onMoveToTomorrow={handleMoveToTomorrow}
+            onToggleWaiting={handleToggleWaiting}
+            onUpdateSubtasks={handleUpdateSubtasks}
+            onQuickAdd={() => {
+              setEditingTodo(null);
+              setQuickAddOpen(true);
+            }}
+          />
+        </div>
+      )}
+
+      {/* 5. DAILY REVIEW TAB */}
+      {activeTab === 'review' && (
+        <div className="animate-in fade-in duration-200">
+          <DailyReviewView
+            todos={todayTasksList.length > 0 ? todayTasksList : todos}
+            onToggleComplete={handleToggleComplete}
+            onMoveToTomorrow={handleMoveToTomorrow}
+            onReschedule={(id, date) => updateMutation.mutate({ id, due_date: date })}
+            onMoveToInbox={handleMoveToInbox}
+            onDelete={handleDelete}
+          />
+        </div>
+      )}
+
+      {/* FULLSCREEN FOCUS OVERLAY (WHEN FOCUS ACTIVE) */}
+      {activeFocusTask && (
+        <FocusMode
+          task={activeFocusTask}
+          whyNow={focusNowReason}
+          onComplete={(id) => handleToggleComplete(id, true)}
+          onClose={() => setActiveFocusTask(null)}
+          onUpdateSubtasks={handleUpdateSubtasks}
+        />
+      )}
+
+      {/* QUICK ADD / EDIT MODAL */}
+      <QuickAddModal
+        open={quickAddOpen}
+        onOpenChange={(open) => {
+          setQuickAddOpen(open);
+          if (!open) setEditingTodo(null);
+        }}
+        onSubmit={handleQuickAddSubmit}
+        editingTodo={editingTodo}
+      />
+
+      {/* AI PRIORITIZE MY DAY MODAL */}
+      <AIPrioritizerModal
+        open={prioritizeModalOpen}
+        onOpenChange={setPrioritizeModalOpen}
+        tasks={todos.filter(t => !t.completed)}
+        onStartFocus={handleStartFocus}
+      />
+    </AppLayout>
   );
 }
