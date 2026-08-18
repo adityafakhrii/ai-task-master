@@ -101,89 +101,112 @@ export function DateTimePicker({
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-auto p-3 space-y-3 rounded-2xl shadow-lg border-border" align="start">
+      <PopoverContent
+        className="w-auto max-w-[95vw] p-3.5 space-y-3 rounded-2xl shadow-xl border-border bg-popover text-popover-foreground z-[60]"
+        align="start"
+        side="bottom"
+        sideOffset={6}
+        collisionPadding={16}
+      >
         {/* Quick Date Chips */}
-        <div className="flex flex-wrap items-center gap-1 text-[11px]">
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
           <button
             type="button"
             onClick={() => setQuickDate('today')}
-            className="px-2 py-1 rounded-md bg-secondary/80 hover:bg-secondary text-secondary-foreground font-medium transition-colors"
+            className="px-2.5 py-1 rounded-lg bg-secondary/80 hover:bg-secondary text-secondary-foreground font-medium transition-colors"
           >
             Hari Ini (18:00)
           </button>
           <button
             type="button"
             onClick={() => setQuickDate('tomorrow')}
-            className="px-2 py-1 rounded-md bg-secondary/80 hover:bg-secondary text-secondary-foreground font-medium transition-colors"
+            className="px-2.5 py-1 rounded-lg bg-secondary/80 hover:bg-secondary text-secondary-foreground font-medium transition-colors"
           >
             Besok (09:00)
           </button>
           <button
             type="button"
             onClick={() => setQuickDate('afterTomorrow')}
-            className="px-2 py-1 rounded-md bg-secondary/80 hover:bg-secondary text-secondary-foreground font-medium transition-colors"
+            className="px-2.5 py-1 rounded-lg bg-secondary/80 hover:bg-secondary text-secondary-foreground font-medium transition-colors"
           >
             Lusa (09:00)
           </button>
           <button
             type="button"
             onClick={() => setQuickDate('nextWeek')}
-            className="px-2 py-1 rounded-md bg-secondary/80 hover:bg-secondary text-secondary-foreground font-medium transition-colors"
+            className="px-2.5 py-1 rounded-lg bg-secondary/80 hover:bg-secondary text-secondary-foreground font-medium transition-colors"
           >
             +7 Hari
           </button>
         </div>
 
-        {/* Calendar Grid */}
-        <div className="border border-border/60 rounded-xl p-1 bg-card/50">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={handleDateSelect}
-            initialFocus
-          />
-        </div>
-
-        {/* Time Selector */}
-        <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/60">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Clock className="h-3.5 w-3.5" />
-            <span>Waktu:</span>
-          </div>
-
-          <div className="flex items-center gap-1">
-            {['09:00', '12:00', '16:00', '20:00'].map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                onClick={() => handleTimeChange(preset)}
-                className={cn(
-                  'px-1.5 py-0.5 text-[11px] rounded transition-colors',
-                  timeStr === preset
-                    ? 'bg-primary text-primary-foreground font-semibold'
-                    : 'bg-muted/60 text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {preset}
-              </button>
-            ))}
-
-            <input
-              type="time"
-              value={timeStr}
-              onChange={(e) => handleTimeChange(e.target.value)}
-              className="h-7 px-1.5 text-xs bg-background border border-border rounded-md font-mono"
+        {/* Side-by-Side: Calendar on Left, Time Selector on Right */}
+        <div className="flex flex-col sm:flex-row items-stretch gap-3">
+          {/* Calendar (Left) */}
+          <div className="border border-border/60 rounded-xl p-1 bg-card/40">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={handleDateSelect}
+              initialFocus
             />
           </div>
+
+          {/* Time Picker Panel (Right) */}
+          <div className="border border-border/60 rounded-xl p-3 bg-card/40 sm:w-44 flex flex-col justify-between space-y-3">
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                <Clock className="h-3.5 w-3.5 text-primary" />
+                <span>Pilih Jam</span>
+              </div>
+
+              {/* Time Presets Column */}
+              <div className="grid grid-cols-2 sm:grid-cols-1 gap-1.5">
+                {[
+                  { time: '09:00', label: '09:00 Pagi' },
+                  { time: '12:00', label: '12:00 Siang' },
+                  { time: '16:00', label: '16:00 Sore' },
+                  { time: '20:00', label: '20:00 Malam' }
+                ].map((item) => (
+                  <button
+                    key={item.time}
+                    type="button"
+                    onClick={() => handleTimeChange(item.time)}
+                    className={cn(
+                      'px-2.5 py-1.5 text-xs rounded-lg font-medium transition-all text-left flex items-center justify-between',
+                      timeStr === item.time
+                        ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
+                        : 'bg-secondary/60 hover:bg-secondary text-secondary-foreground'
+                    )}
+                  >
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Time Input */}
+            <div className="space-y-1 pt-2 border-t border-border/60">
+              <label className="text-[10px] uppercase font-semibold text-muted-foreground">
+                Jam Kustom
+              </label>
+              <input
+                type="time"
+                value={timeStr}
+                onChange={(e) => handleTimeChange(e.target.value)}
+                className="w-full h-8 px-2 text-xs bg-background border border-border rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Done / Clear button */}
-        <div className="flex items-center justify-between gap-2 pt-1">
+        {/* Bottom Actions */}
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/60">
           {value ? (
             <button
               type="button"
               onClick={() => onChange(null)}
-              className="text-[11px] text-destructive hover:underline"
+              className="text-[11px] text-destructive hover:underline font-medium"
             >
               Hapus Tenggat
             </button>
@@ -195,9 +218,9 @@ export function DateTimePicker({
             type="button"
             size="sm"
             onClick={() => setOpen(false)}
-            className="h-7 px-3 text-xs rounded-lg font-medium"
+            className="h-7 px-3.5 text-xs rounded-lg font-semibold"
           >
-            Selesai
+            Terapkan
           </Button>
         </div>
       </PopoverContent>
