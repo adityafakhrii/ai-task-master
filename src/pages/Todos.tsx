@@ -20,6 +20,7 @@ import {
   isTaskDueToday,
   isTaskOverdue
 } from '@/lib/taskUtils';
+import { triggerCelebrationEffect, getRandomCelebrationMessage } from '@/lib/celebration';
 
 export default function Todos() {
   const { user, loading: authLoading } = useAuth();
@@ -170,6 +171,20 @@ export default function Todos() {
   // Action helpers
   const handleToggleComplete = (id: string, completed: boolean) => {
     toggleCompleteMutation.mutate({ id, completed });
+
+    if (completed) {
+      triggerCelebrationEffect();
+      const praise = getRandomCelebrationMessage();
+      toast({
+        title: praise.title,
+        description: praise.description
+      });
+    } else {
+      toast({
+        title: 'Task dibuka lagi ya',
+        description: 'Gas selesaiin kapan aja lo siap!'
+      });
+    }
   };
 
   const handleStartFocus = (task: Todo) => {
